@@ -1,22 +1,47 @@
 'use strict';
-
 import { Logger } from 'sitka';
 
-export class Example {
-	/* Private Instance Fields */
+import Aedes from 'aedes'
+import server from 'net'
+import http from 'http'
+import ws from 'websocket-stream'
 
-	private _logger: Logger;
+const mqPort = 1883
+const wsPort = 8888
 
-	/* Constructor */
+const logger = Logger.getLogger({ name: 'main' });
+const aedes = new Aedes()
+const mqServer = server.createServer(aedes.handle)
+const wsServer = http.createServer()
 
-	constructor() {
-		this._logger = Logger.getLogger({ name: this.constructor.name });
+mqServer.listen(mqPort, function () {
+	logger.info('MQTT server listening on port => ', mqPort);
+})
+
+ws.createServer({
+	server: wsServer
+}, aedes.handle as any)
+
+wsServer.listen(wsPort, function () {
+	logger.info('Websocket server listening on port => ', wsPort);
+})
+
+aedes.on('publish', function (packet, client) {
+	if (client) {
+		console.info('message from client', client.id)
 	}
+})
 
-	/* Public Instance Methods */
-
-	public exampleMethod(param: string): string {
-		this._logger.debug('Received: ' + param);
-		return param;
+aedes.on('subscribe', function (subscriptions, client) {
+	if (client) {
+		console.info('subscribe from client', subscriptions, client.id)
 	}
-}
+})
+
+aedes.on('client', function (client) {
+	logger.info('new client', client.id);
+})
+
+aedes.on('clientDisconnect', function (client) {
+	logger.warn('client disconnected', client.id);
+})
