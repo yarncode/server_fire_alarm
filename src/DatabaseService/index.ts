@@ -1,0 +1,1 @@
+export const DATABASE_SERVICE_NAME = 'database-service';

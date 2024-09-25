@@ -1,13 +1,19 @@
+/* node_module import */
 import { Logger } from 'sitka';
-
 import server, { Server } from 'net'
 import Aedes, { Client, AedesPublishPacket, PingreqPacket } from 'aedes'
 
+/* my import */
+import { RocketService } from '../ManageService'
+
 const logger = Logger.getLogger({ name: 'MQTT' });
 
-class MqttInstance {
+export const MQTT_SERVICE_NAME = 'mqtt-service';
+
+class MqttInstance extends RocketService {
 
 	constructor(port: number) {
+		super(MQTT_SERVICE_NAME);
 		this.port = port;
 		this.aedes = new Aedes();
 		this.server = server.createServer(this.aedes.handle);

@@ -1,7 +1,6 @@
 'use strict';
-// import { Logger } from 'sitka';
 import MqttService from './MqttService';
+import APIService from './APIService';
 
-// const logger = Logger.getLogger({ name: 'main' });
-
+APIService.start();
 MqttService.start();
