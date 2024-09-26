@@ -1,7 +1,7 @@
 /* node_module import */
 import { Logger } from 'sitka';
 import { RedisClientType, createClient } from 'redis';
-import { PayloadService } from '../Constant/interface'
+import { PayloadRocket } from '../Constant/interface'
 
 /* local import */
 // import { LIST_OF_SERVICES } from '../Constant'
@@ -16,20 +16,24 @@ class RocketService {
 	}
 
 	onReceiveMessage(payload: string): void {
-		const pay: PayloadService = JSON.parse(payload);
+		const pay: PayloadRocket = JSON.parse(payload);
 		logger.info(`Received payload: ${pay}`);
 	}
 
+	sendMessage(to: string, payload: PayloadRocket): Promise<any> {
+		return this.client.publish(to, JSON.stringify(payload));
+	}
+
 	onConnect(): void {
-		logger.info(`${this._SERVICE_NAME} Connected`);
+		logger.info(`${this._SERVICE_NAME} linked`);
 	}
 
 	onDisconnect(): void {
-		logger.info(`${this._SERVICE_NAME} Disconnecting...`);
+		logger.info(`${this._SERVICE_NAME} unlinked`);
 	}
 
 	onError(err: any): void {
-		// logger.error(err);
+		logger.error(`${this._SERVICE_NAME} error: ${err?.message}`);
 	}
 
 	onReconnect(): void {
@@ -38,11 +42,11 @@ class RocketService {
 
 	startRocket(): void {
 		logger.info(`Starting RocketService on [${this._SERVICE_NAME.toLocaleUpperCase()}] instance`);
-		this.client.subscribe(this._SERVICE_NAME, this.onReceiveMessage);
-		this.client.on('connect', this.onConnect);
-		this.client.on('disconnect', this.onDisconnect);
-		this.client.on('error', this.onError);
-		this.client.on('reconnect', this.onReconnect);
+		this.client.subscribe(this._SERVICE_NAME, this.onReceiveMessage.bind(this));
+		this.client.on('connect', this.onConnect.bind(this));
+		this.client.on('disconnect', this.onDisconnect.bind(this));
+		this.client.on('error', this.onError.bind(this));
+		this.client.on('reconnect', this.onReconnect.bind(this));
 		this.client.connect();
 	}
 

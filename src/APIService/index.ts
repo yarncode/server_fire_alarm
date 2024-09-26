@@ -16,6 +16,10 @@ class APIInstance extends RocketService {
     this.app = express();
   }
 
+  override onReceiveMessage(payload: string): void {
+    logger.info(`Received payload: ${payload}`);
+  }
+
   onListen(): void {
     logger.info(`API server listening on port: {${this.port}}`);
   }

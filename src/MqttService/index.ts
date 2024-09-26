@@ -19,6 +19,10 @@ class MqttInstance extends RocketService {
 		this.server = server.createServer(this.aedes.handle);
 	}
 
+	override onReceiveMessage(payload: string): void {
+		logger.info(`Received payload: ${payload}`);
+	}
+
 	onConnected(client: Client): void {
 		logger.info('Client connected => ', client.id);
 	}
@@ -37,7 +41,7 @@ class MqttInstance extends RocketService {
 	}
 
 	async start() {
-		logger.info('Starting MQTT instance');
+		// logger.info('Starting MQTT instance');
 
 		this.aedes.on('client', this.onConnected);
 		this.aedes.on('clientDisconnect', this.onDisconnected);

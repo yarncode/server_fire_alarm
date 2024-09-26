@@ -1,3 +1,3 @@
-export interface PayloadService {
+export interface PayloadRocket {
   [key: string]: any;
 }
