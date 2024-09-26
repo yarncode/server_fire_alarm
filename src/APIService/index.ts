@@ -4,6 +4,7 @@ import { RocketService } from '../ManageService'
 import express from 'express'
 
 /* my import */
+import routerSetup from './router/center'
 
 const logger = Logger.getLogger({ name: 'API' });
 
@@ -25,6 +26,10 @@ class APIInstance extends RocketService {
   }
 
   start(): void {
+    /* setup body parser */
+    this.app.use(express.urlencoded({ extended: true }));
+    this.app.use(express.json());
+    routerSetup(this.app);
     this.app.listen(this.port, this.onListen.bind(this));
   }
 
