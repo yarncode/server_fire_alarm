@@ -21,6 +21,7 @@ interface UpdateDevicePayload {
   email: string;
   name: string;
   desc: string;
+  mac: string;
 }
 
 export interface DeviceResponse {
@@ -41,7 +42,8 @@ export type DeviceCode =
   | '107010'
   | '107011'
   | '107012'
-  | '107013';
+  | '107013'
+  | '107014';
 export const DEVICE_MESSAGE: { [key in DeviceCode]: string } = {
   '107000': 'None',
   '107001': 'Device not found',
@@ -57,6 +59,7 @@ export const DEVICE_MESSAGE: { [key in DeviceCode]: string } = {
   '107011': 'Device get successfully',
   '107012': 'Device update successfully',
   '107013': 'Device remove successfully',
+  '107014': 'Device not owned by user',
 };
 
 class Device {
@@ -82,7 +85,7 @@ class Device {
           .json({ code: '107006', message: DEVICE_MESSAGE['107006'] });
       }
 
-      const devices = await DeviceMD.find({ by_user: user.id }).select([
+      const devices = await DeviceMD.find({ by_user: user._id, state: 'active' }).select([
         '-_id',
         '-__v',
         '-by_user',
@@ -109,10 +112,10 @@ class Device {
   /* {for user}: [GET] /device/info */
   async device_info(req: Request, res: Response): Promise<any> {
     try {
-      const { mac } = req.params;
+      const { mac } = req.body;
 
       /* get device if found */
-      const device = await DeviceMD.findOne({ mac }).select([
+      const device = await DeviceMD.findOne({ mac, state: 'active' }).select([
         '-_id',
         '-__v',
         '-by_user',
@@ -173,7 +176,7 @@ class Device {
 
       if (device !== null) {
         /* device already exists => goto update */
-        await device.updateOne({ type: type_node, by_user: user._id }).exec();
+        await device.updateOne({ type: type_node, by_user: user._id, state: 'active' }).exec();
 
         return res
           .status(200)
@@ -226,8 +229,7 @@ class Device {
   /* {for user}: [POST] /device/info/update */
   async update_device(req: Request, res: Response): Promise<any> {
     try {
-      const { mac } = req.params;
-      const { name, desc }: UpdateDevicePayload = req.body;
+      const { name, desc, mac }: UpdateDevicePayload = req.body;
 
       /* get device if found */
       const device = await DeviceMD.findOne({ mac });
@@ -254,7 +256,7 @@ class Device {
   /* {for user}: [POST] /device/remove */
   async remove_device(req: Request, res: Response): Promise<any> {
     try {
-      const { mac } = req.params;
+      const { mac } = req.body;
 
       /* get device if found */
       const device = await DeviceMD.findOne({ mac });
@@ -270,7 +272,7 @@ class Device {
 
       return res
         .status(200)
-        .json({ code: '107012', message: DEVICE_MESSAGE['107012'] });
+        .json({ code: '107013', message: DEVICE_MESSAGE['107013'] });
     } catch (error) {
       return res
         .status(500)

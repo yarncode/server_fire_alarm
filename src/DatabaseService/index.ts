@@ -42,4 +42,4 @@ class DatabaseInstance extends RocketService {
   port: number;
 }
 
-export default new DatabaseInstance(27017);
+export default new DatabaseInstance(parseInt(process.env.PORT_DATABASE || '27017'));

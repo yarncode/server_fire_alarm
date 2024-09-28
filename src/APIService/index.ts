@@ -2,6 +2,7 @@
 import { Logger } from 'sitka';
 import { RocketService } from '../ManageService'
 import express from 'express'
+import cors from 'cors'
 
 /* my import */
 import routerSetup from './router/center'
@@ -29,6 +30,7 @@ class APIInstance extends RocketService {
     /* setup body parser */
     this.app.use(express.urlencoded({ extended: true }));
     this.app.use(express.json());
+    this.app.use(cors());
     routerSetup(this.app);
     this.app.listen(this.port, this.onListen.bind(this));
   }
@@ -41,4 +43,4 @@ class APIInstance extends RocketService {
   app: express.Application;
 }
 
-export default new APIInstance(3300);
+export default new APIInstance(parseInt(process.env.PORT_SERVER_API || '3300'));

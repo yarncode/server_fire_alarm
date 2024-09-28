@@ -68,4 +68,4 @@ class MqttInstance extends RocketService {
 	server: Server;
 }
 
-export default new MqttInstance(1883);
+export default new MqttInstance(parseInt(process.env.PORT_SOCKET_MQTT || '1883'));
