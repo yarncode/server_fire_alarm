@@ -1,10 +1,10 @@
 /* node_module import */
 import { Logger } from 'sitka';
 import { Server as SocketIOServer, Socket } from 'socket.io';
-// import { createServer, Server } from 'http';
 
 /* my import */
 import { RocketService } from '../ManageService';
+import { main_auth } from './middleware';
 
 const logger = Logger.getLogger({ name: 'SOCKET_IO' });
 
@@ -15,7 +15,7 @@ class SocketIOInstance extends RocketService {
     super(SOCKET_IO_SERVICE_NAME);
     this.port = port;
     // this.server = createServer();
-    this.io = new SocketIOServer({});
+    this.io = new SocketIOServer({ cors: { origin: '*' } });
   }
 
   override onReceiveMessage(payload: string): void {
@@ -32,7 +32,6 @@ class SocketIOInstance extends RocketService {
 
   onConnection(socket: Socket): void {
     this.onConnected(socket);
-
     socket.on('disconnect', (reason: string) =>
       this.onDisconnected(socket, reason)
     );
@@ -40,6 +39,7 @@ class SocketIOInstance extends RocketService {
 
   async start() {
     // logger.info('Starting SocketIO instance');
+    this.io.use(main_auth.validate_token);
     this.io.on('connection', this.onConnection.bind(this));
 
     /* start listen socket-io on port */

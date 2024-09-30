@@ -167,11 +167,12 @@ class Account {
             }
 
             return res.status(200).json({ code: '108000', message: ACCOUNT_MESSAGE['108000'], info: {
+                id: user._id,
                 email: user.email,
                 name: user.name,
                 username: user.username,
                 desc: user.desc,
-                avatar_url: user.avatar_url
+                avatar_url: user.avatar_url,
             } });
 
         } catch (error) {
