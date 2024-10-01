@@ -4,17 +4,32 @@ import { Server as SocketIOServer, Socket } from 'socket.io';
 
 /* my import */
 import { RocketService } from '../ManageService';
-import { main_auth } from './middleware';
 import { DataMqtt } from '../MqttService';
 import { DataRocketDynamic } from '../Constant/interface';
+import { UserMD } from '../DatabaseService/models/account';
+import { DeviceMD } from '../DatabaseService/models/devices';
+import jwt, { JwtPayload } from 'jsonwebtoken';
+import { ACCOUNT_MESSAGE } from '../APIService/controller/account';
 
 const logger = Logger.getLogger({ name: 'SOCKET_IO' });
 
 export const SOCKET_IO_SERVICE_NAME = 'socket-io-service';
 
+interface InfoClientSocketCache {
+  [clientId: string]: {
+    userId: string;
+    devices: string[];
+  };
+}
+
+interface PayloadDecodeRuntimeToken extends JwtPayload {
+  email: string;
+}
+
 class SocketIOInstance extends RocketService {
   constructor(port: number) {
     super(SOCKET_IO_SERVICE_NAME);
+    this.cacheInfoUser = {};
     this.port = port;
     // this.server = createServer();
     this.io = new SocketIOServer({ cors: { origin: '*' } });
@@ -28,13 +43,14 @@ class SocketIOInstance extends RocketService {
       const childPayload = pay.payload as DataMqtt;
 
       const userId = childPayload.userId;
+      const deviceId = childPayload.deviceId;
       const mac = childPayload.mac;
       const whereEmit = childPayload.emitEvent;
       const action = childPayload.action;
 
       if (userId && mac && whereEmit && action.includes('NOTIFY')) {
         /* push message to user client */
-        this.io.emit(`${userId}/${mac}/${whereEmit}`, childPayload.data);
+        this.io.emit(`${userId}/${deviceId}/${whereEmit}`, childPayload.data);
       }
     }
   }
@@ -54,9 +70,65 @@ class SocketIOInstance extends RocketService {
     );
   }
 
+  async validateAuthentication(
+    socket: Socket,
+    next: (err?: Error) => void
+  ): Promise<void> {
+    const token = socket.handshake.auth['token'] as string;
+
+    if (!token) {
+      return next(
+        new Error(
+          JSON.stringify({ code: '108015', message: ACCOUNT_MESSAGE['108015'] })
+        )
+      );
+    }
+
+    try {
+      const decoded = jwt.verify(
+        token,
+        process.env.JWT_SIGNATURE_SECRET || 'secret'
+      ) as PayloadDecodeRuntimeToken;
+
+      if (decoded.email) {
+        /* check user exist */
+        const user = await UserMD.findOne({ email: decoded.email });
+
+        if (user === null) {
+          return next(
+            new Error(
+              JSON.stringify({
+                code: '108001',
+                message: ACCOUNT_MESSAGE['108001'],
+              })
+            )
+          );
+        }
+
+        const devices = await DeviceMD.find({
+          by_user: user._id,
+          state: 'active',
+        }).select('_id');
+
+        this.cacheInfoUser[socket.id] = {
+          userId: user._id.toString(),
+          devices: devices.map((d) => d._id.toString()),
+        };
+      }
+
+      return next();
+    } catch (error) {
+      return next(
+        new Error(
+          JSON.stringify({ code: '108010', message: ACCOUNT_MESSAGE['108010'] })
+        )
+      );
+    }
+  }
+
   async start() {
     // logger.info('Starting SocketIO instance');
-    this.io.use(main_auth.validate_token);
+    this.io.use(this.validateAuthentication.bind(this));
     this.io.on('connection', this.onConnection.bind(this));
 
     /* start listen socket-io on port */
@@ -73,6 +145,7 @@ class SocketIOInstance extends RocketService {
   port: number;
   //   server: Server;
   io: SocketIOServer;
+  cacheInfoUser: InfoClientSocketCache;
 }
 
 export default new SocketIOInstance(

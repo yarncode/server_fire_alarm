@@ -22,6 +22,7 @@ export interface DataMqtt {
   action: Array<ActionPayload>;
   emitEvent: string;
   userId: string;
+  deviceId: string;
   data: any;
 }
 
@@ -30,6 +31,7 @@ export const MQTT_SERVICE_NAME = 'mqtt-service';
 interface InfoClientMQTTCache {
   [clientId: string]: {
     userId: string;
+    deviceId: string;
     mac: string;
   };
 }
@@ -49,8 +51,10 @@ class MqttInstance extends RocketService {
     }
 
     const userId = this.cacheInfoDevice[clientId].userId;
+    const deviceId = this.cacheInfoDevice[clientId].userId;
+    const mac = this.cacheInfoDevice[clientId].mac;
 
-    if (userId) {
+    if (userId && deviceId && mac) {
       /* push message to user client */
       // logger.info(`Pushing to user: ${userId} - payload: ${payload}`);
 
@@ -58,8 +62,9 @@ class MqttInstance extends RocketService {
         service: 'mqtt-service',
         payload: {
           action: ['NOTIFY'],
-          mac: this.cacheInfoDevice[clientId].mac,
-          userId: this.cacheInfoDevice[clientId].userId,
+          mac,
+          userId,
+          deviceId,
           topic: '/sensor',
           emitEvent: 'sensor',
           data: payload,
@@ -93,7 +98,7 @@ class MqttInstance extends RocketService {
       );
 
       if (packet.topic === '/sensor') {
-        this.handleSensor(client?.id ?? '', packet.payload.toString());
+        this.handleSensor(client.id, packet.payload.toString());
       }
     }
   }
@@ -132,6 +137,7 @@ class MqttInstance extends RocketService {
     } else {
       this.cacheInfoDevice[client.id] = {
         userId: device.by_user.toString(),
+        deviceId: device._id.toString(),
         mac: device.mac,
       };
       done(null, true);
