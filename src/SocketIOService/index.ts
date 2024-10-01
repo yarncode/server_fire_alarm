@@ -5,6 +5,8 @@ import { Server as SocketIOServer, Socket } from 'socket.io';
 /* my import */
 import { RocketService } from '../ManageService';
 import { main_auth } from './middleware';
+import { DataMqtt } from '../MqttService';
+import { DataRocketDynamic } from '../Constant/interface';
 
 const logger = Logger.getLogger({ name: 'SOCKET_IO' });
 
@@ -19,7 +21,22 @@ class SocketIOInstance extends RocketService {
   }
 
   override onReceiveMessage(payload: string): void {
-    logger.info(`Received payload: ${payload}`);
+    const pay: DataRocketDynamic = JSON.parse(payload);
+    logger.info(`received message form ${pay.service}`);
+
+    if (pay.service === 'mqtt-service') {
+      const childPayload = pay.payload as DataMqtt;
+
+      const userId = childPayload.userId;
+      const mac = childPayload.mac;
+      const whereEmit = childPayload.emitEvent;
+      const action = childPayload.action;
+
+      if (userId && mac && whereEmit && action.includes('NOTIFY')) {
+        /* push message to user client */
+        this.io.emit(`${userId}/${mac}/${whereEmit}`, childPayload.data);
+      }
+    }
   }
 
   onConnected(socket: Socket): void {

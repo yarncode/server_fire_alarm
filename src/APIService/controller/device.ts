@@ -85,11 +85,10 @@ class Device {
           .json({ code: '107006', message: DEVICE_MESSAGE['107006'] });
       }
 
-      const devices = await DeviceMD.find({ by_user: user._id, state: 'active' }).select([
-        '-_id',
-        '-__v',
-        '-by_user',
-      ]);
+      const devices = await DeviceMD.find({
+        by_user: user._id,
+        state: 'active',
+      }).select(['-_id', '-__v', '-by_user']);
 
       if (devices === null) {
         return res
@@ -176,11 +175,19 @@ class Device {
 
       if (device !== null) {
         /* device already exists => goto update */
-        await device.updateOne({ type: type_node, by_user: user._id, state: 'active' }).exec();
+        await device
+          .updateOne({ type: type_node, by_user: user._id, state: 'active' })
+          .exec();
 
-        return res
-          .status(200)
-          .json({ code: '107012', message: DEVICE_MESSAGE['107012'] });
+        return res.status(200).json({
+          code: '107012',
+          message: DEVICE_MESSAGE['107012'],
+          auth: {
+            username: device.auth?.username ?? 'Unknown',
+            password: device.auth?.password ?? 'Unknown',
+            token: device.token,
+          },
+        });
       } else {
         /* device not found => goto create new */
 

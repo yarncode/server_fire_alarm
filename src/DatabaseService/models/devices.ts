@@ -8,7 +8,7 @@ export type NodeType = 'GATEWAY' | 'NODE' | 'UNKNOWN';
 export const NodeTypeList = ['GATEWAY', 'NODE', 'UNKNOWN'];
 
 const Device = new Schema({
-    by_user: { ref: MODEL_USER_NAME, type: Schema.Types.ObjectId },
+    by_user: { ref: MODEL_USER_NAME, type: Schema.Types.ObjectId, required: true },
     name: { type: Schema.Types.String },
     desc: { type: Schema.Types.String },
     mac: { type: Schema.Types.String, required: true, unique: true },
