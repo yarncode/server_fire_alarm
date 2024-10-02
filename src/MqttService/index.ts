@@ -19,7 +19,7 @@ const logger = Logger.getLogger({ name: 'MQTT' });
 export interface DataMqtt {
   topic: string;
   mac: string;
-  action: Array<ActionPayload>;
+  action: ActionPayload;
   emitEvent: string;
   userId: string;
   deviceId: string;
@@ -45,6 +45,36 @@ class MqttInstance extends RocketService {
     this.server = server.createServer(this.aedes.handle);
   }
 
+  private handleDeviceActive(clientId: string, payload: string) {
+    if (!clientId) {
+      logger.error('Client id is not found');
+    }
+
+    const userId = this.cacheInfoDevice[clientId].userId;
+    const deviceId = this.cacheInfoDevice[clientId].userId;
+    const mac = this.cacheInfoDevice[clientId].mac;
+
+    if (userId && deviceId && mac) {
+      /* push message to user client */
+      // logger.info(`Pushing to user: ${userId} - payload: ${payload}`);
+
+      const data: DataRocketDynamic<DataMqtt> = {
+        service: 'mqtt-service',
+        payload: {
+          action: 'NOTIFY',
+          mac,
+          userId,
+          deviceId,
+          topic: '/active',
+          emitEvent: 'active',
+          data: payload,
+        },
+      };
+
+      this.sendMessage('socket-io-service', data);
+    }
+  }
+
   private handleSensor(clientId: string, payload: string): void {
     if (!clientId) {
       logger.error('Client id is not found');
@@ -61,7 +91,7 @@ class MqttInstance extends RocketService {
       const data: DataRocketDynamic<DataMqtt> = {
         service: 'mqtt-service',
         payload: {
-          action: ['NOTIFY'],
+          action: 'NOTIFY',
           mac,
           userId,
           deviceId,
@@ -85,6 +115,9 @@ class MqttInstance extends RocketService {
 
   onDisconnected(client: Client): void {
     logger.info('Client disconnected => ', client.id);
+
+    /* remove client when disconnect */
+    // delete this.cacheInfoDevice[client.id];
   }
 
   onPing(packet: PingreqPacket, client: Client): void {
@@ -99,6 +132,8 @@ class MqttInstance extends RocketService {
 
       if (packet.topic === '/sensor') {
         this.handleSensor(client.id, packet.payload.toString());
+      } else if (packet.topic === '/active') {
+        this.handleDeviceActive(client.id, packet.payload.toString());
       }
     }
   }

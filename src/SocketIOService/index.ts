@@ -35,23 +35,32 @@ class SocketIOInstance extends RocketService {
     this.io = new SocketIOServer({ cors: { origin: '*' } });
   }
 
+  private handleDataMqtt(payload: DataMqtt): void {
+    const userId = payload.userId;
+    const deviceId = payload.deviceId;
+    const mac = payload.mac;
+    const whereEmit = payload.emitEvent;
+    const action = payload.action;
+
+    if (userId && mac && whereEmit && action == 'NOTIFY') {
+      /* push message to user client */
+
+      /* [PATH: '{userId}/device/active'] */
+      if (whereEmit === 'active') {
+        this.io.emit(`${userId}/device/active`, JSON.parse(payload.data));
+      } else if (whereEmit === 'sensor') {
+        /* [PATH: '{userId}/{deviceId}/sensor'] */
+        this.io.emit(`${userId}/${deviceId}/sensor`, JSON.parse(payload.data));
+      }
+    }
+  }
+
   override onReceiveMessage(payload: string): void {
     const pay: DataRocketDynamic = JSON.parse(payload);
     logger.info(`received message form ${pay.service}`);
 
     if (pay.service === 'mqtt-service') {
-      const childPayload = pay.payload as DataMqtt;
-
-      const userId = childPayload.userId;
-      const deviceId = childPayload.deviceId;
-      const mac = childPayload.mac;
-      const whereEmit = childPayload.emitEvent;
-      const action = childPayload.action;
-
-      if (userId && mac && whereEmit && action.includes('NOTIFY')) {
-        /* push message to user client */
-        this.io.emit(`${userId}/${deviceId}/${whereEmit}`, childPayload.data);
-      }
+      this.handleDataMqtt(pay.payload as DataMqtt);
     }
   }
 
@@ -61,6 +70,9 @@ class SocketIOInstance extends RocketService {
 
   onDisconnected(socket: Socket, reason: string): void {
     logger.info('Client disconnected => ', socket.id, 'reason: ', reason);
+
+    /* remove client when disconnect */
+    delete this.cacheInfoUser[socket.id];
   }
 
   onConnection(socket: Socket): void {
@@ -105,15 +117,21 @@ class SocketIOInstance extends RocketService {
           );
         }
 
-        const devices = await DeviceMD.find({
+        DeviceMD.find({
           by_user: user._id,
           state: 'active',
-        }).select('_id');
-
-        this.cacheInfoUser[socket.id] = {
-          userId: user._id.toString(),
-          devices: devices.map((d) => d._id.toString()),
-        };
+        })
+          .select('_id')
+          .exec()
+          .then((_devices) => {
+            this.cacheInfoUser[socket.id] = {
+              userId: user._id.toString(),
+              devices: _devices.map((d) => d._id.toString()),
+            };
+          })
+          .catch((err) => {
+            logger.error(err);
+          });
       }
 
       return next();
