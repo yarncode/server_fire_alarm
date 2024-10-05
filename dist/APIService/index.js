@@ -46,7 +46,9 @@ var APIInstance = /** @class */ (function (_super) {
         /* setup body parser */
         this.app.use(express_1.default.urlencoded({ extended: true }));
         this.app.use(express_1.default.json());
-        this.app.use((0, cors_1.default)());
+        this.app.use((0, cors_1.default)({
+            origin: '*',
+        }));
         (0, center_1.default)(this.app);
         this.app.listen(this.port, this.onListen.bind(this));
     };

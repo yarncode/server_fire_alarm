@@ -35,45 +35,12 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
         if (op[0] & 5) throw op[1]; return { value: op[0] ? op[1] : void 0, done: true };
     }
 };
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.main_auth = void 0;
-var account_1 = require("../DatabaseService/models/account");
-var jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
-var account_2 = require("../APIService/controller/account");
 exports.main_auth = {
     validate_token: function (socket, next) { return __awaiter(void 0, void 0, void 0, function () {
-        var token, decoded, user, error_1;
         return __generator(this, function (_a) {
-            switch (_a.label) {
-                case 0:
-                    token = socket.handshake.auth['token'];
-                    if (!token) {
-                        return [2 /*return*/, next(new Error(JSON.stringify({ code: '108015', message: account_2.ACCOUNT_MESSAGE['108015'] })))];
-                    }
-                    _a.label = 1;
-                case 1:
-                    _a.trys.push([1, 4, , 5]);
-                    decoded = jsonwebtoken_1.default.verify(token, process.env.JWT_SIGNATURE_SECRET || 'secret');
-                    if (!decoded.email) return [3 /*break*/, 3];
-                    return [4 /*yield*/, account_1.UserMD.findOne({ email: decoded.email })];
-                case 2:
-                    user = _a.sent();
-                    if (user === null) {
-                        return [2 /*return*/, next(new Error(JSON.stringify({
-                                code: '108001',
-                                message: account_2.ACCOUNT_MESSAGE['108001'],
-                            })))];
-                    }
-                    _a.label = 3;
-                case 3: return [2 /*return*/, next()];
-                case 4:
-                    error_1 = _a.sent();
-                    return [2 /*return*/, next(new Error(JSON.stringify({ code: '108010', message: account_2.ACCOUNT_MESSAGE['108010'] })))];
-                case 5: return [2 /*return*/];
-            }
+            return [2 /*return*/];
         });
     }); },
 };

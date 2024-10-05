@@ -10,17 +10,24 @@ import Aedes, {
 } from 'aedes';
 
 /* my import */
-import { ActionPayload, DataRocketDynamic } from '../Constant/interface';
+import { DataRocketDynamic } from '../Constant/interface';
+import {
+  CODE_EVENT_UPDATE_SENSOR,
+  CODE_EVENT_ACTIVE_DEVICE,
+  CODE_EVENT_UPDATE_STATE_DEVICE,
+} from '../Constant';
 import { RocketService } from '../ManageService';
-import { DeviceMD } from '../DatabaseService/models/devices';
+import {
+  DeviceMD,
+  NodeStateType,
+  DataStateDevice,
+} from '../DatabaseService/models/devices';
 
 const logger = Logger.getLogger({ name: 'MQTT' });
 
 export interface DataMqtt {
   topic: string;
   mac: string;
-  action: ActionPayload;
-  emitEvent: string;
   userId: string;
   deviceId: string;
   data: any;
@@ -46,12 +53,8 @@ class MqttInstance extends RocketService {
   }
 
   private handleDeviceActive(clientId: string, payload: string) {
-    if (!clientId) {
-      logger.error('Client id is not found');
-    }
-
     const userId = this.cacheInfoDevice[clientId].userId;
-    const deviceId = this.cacheInfoDevice[clientId].userId;
+    const deviceId = this.cacheInfoDevice[clientId].deviceId;
     const mac = this.cacheInfoDevice[clientId].mac;
 
     if (userId && deviceId && mac) {
@@ -60,13 +63,13 @@ class MqttInstance extends RocketService {
 
       const data: DataRocketDynamic<DataMqtt> = {
         service: 'mqtt-service',
+        action: 'NOTIFY',
+        code: CODE_EVENT_ACTIVE_DEVICE,
         payload: {
-          action: 'NOTIFY',
           mac,
           userId,
           deviceId,
           topic: '/active',
-          emitEvent: 'active',
           data: payload,
         },
       };
@@ -76,12 +79,8 @@ class MqttInstance extends RocketService {
   }
 
   private handleSensor(clientId: string, payload: string): void {
-    if (!clientId) {
-      logger.error('Client id is not found');
-    }
-
     const userId = this.cacheInfoDevice[clientId].userId;
-    const deviceId = this.cacheInfoDevice[clientId].userId;
+    const deviceId = this.cacheInfoDevice[clientId].deviceId;
     const mac = this.cacheInfoDevice[clientId].mac;
 
     if (userId && deviceId && mac) {
@@ -90,19 +89,40 @@ class MqttInstance extends RocketService {
 
       const data: DataRocketDynamic<DataMqtt> = {
         service: 'mqtt-service',
+        action: 'SET',
+        code: CODE_EVENT_UPDATE_SENSOR,
         payload: {
-          action: 'NOTIFY',
           mac,
           userId,
           deviceId,
           topic: '/sensor',
-          emitEvent: 'sensor',
           data: payload,
         },
       };
 
-      this.sendMessage('socket-io-service', data);
+      /* set data into database */
+      this.sendMessage('db-service', data);
     }
+  }
+
+  private handleStateDevice(clientId: string, status: NodeStateType) {
+    const data: DataRocketDynamic<DataMqtt> = {
+      service: 'mqtt-service',
+      action: 'SET',
+      code: CODE_EVENT_UPDATE_STATE_DEVICE,
+      payload: {
+        mac: this.cacheInfoDevice[clientId].mac,
+        userId: this.cacheInfoDevice[clientId].userId,
+        deviceId: this.cacheInfoDevice[clientId].deviceId,
+        topic: '/sensor',
+        data: {
+          status,
+        } as DataStateDevice,
+      },
+    };
+
+    /* set data into database */
+    this.sendMessage('db-service', data);
   }
 
   override onReceiveMessage(payload: string): void {
@@ -111,6 +131,8 @@ class MqttInstance extends RocketService {
 
   onConnected(client: Client): void {
     logger.info('Client connected => ', client.id);
+
+    this.handleStateDevice(client.id, 'ONLINE');
   }
 
   onDisconnected(client: Client): void {
@@ -118,6 +140,7 @@ class MqttInstance extends RocketService {
 
     /* remove client when disconnect */
     // delete this.cacheInfoDevice[client.id];
+    this.handleStateDevice(client.id, 'OFFLINE');
   }
 
   onPing(packet: PingreqPacket, client: Client): void {
@@ -129,6 +152,11 @@ class MqttInstance extends RocketService {
       logger.info(
         `Client id: ${client?.id} - Published topic: ${packet.topic} length: ${packet.payload.length}`
       );
+
+      if (!client?.id) {
+        logger.error('Client id is not found');
+        return;
+      }
 
       if (packet.topic === '/sensor') {
         this.handleSensor(client.id, packet.payload.toString());

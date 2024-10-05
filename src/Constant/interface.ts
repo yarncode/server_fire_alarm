@@ -17,5 +17,7 @@ export interface PayloadRocket {
 
 export interface DataRocketDynamic<P = any> {
   service: ServiceType;
+  action: ActionPayload;
+  code: string;
   payload: P,
 }

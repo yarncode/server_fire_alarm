@@ -88,7 +88,7 @@ class Device {
       const devices = await DeviceMD.find({
         by_user: user._id,
         state: 'active',
-      }).select(['-_id', '-__v', '-by_user']);
+      }).select(['-__v', '-by_user', '-token', '-auth']);
 
       if (devices === null) {
         return res
@@ -99,7 +99,10 @@ class Device {
       return res.status(200).json({
         code: '107002',
         message: DEVICE_MESSAGE['107002'],
-        info: devices,
+        info: devices.map((device) => ({
+          ...device.toObject(),
+          id: device._id,
+        })),
       });
     } catch (error) {
       return res

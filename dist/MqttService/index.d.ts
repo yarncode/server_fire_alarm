@@ -5,20 +5,23 @@ import { RocketService } from '../ManageService';
 export interface DataMqtt {
     topic: string;
     mac: string;
-    action: Array<ActionPayload>;
+    action: ActionPayload;
     emitEvent: string;
     userId: string;
+    deviceId: string;
     data: any;
 }
 export declare const MQTT_SERVICE_NAME = "mqtt-service";
 interface InfoClientMQTTCache {
     [clientId: string]: {
         userId: string;
+        deviceId: string;
         mac: string;
     };
 }
 declare class MqttInstance extends RocketService {
     constructor(port: number);
+    private handleDeviceActive;
     private handleSensor;
     onReceiveMessage(payload: string): void;
     onConnected(client: Client): void;

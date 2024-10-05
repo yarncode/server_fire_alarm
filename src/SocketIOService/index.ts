@@ -5,7 +5,12 @@ import { Server as SocketIOServer, Socket } from 'socket.io';
 /* my import */
 import { RocketService } from '../ManageService';
 import { DataMqtt } from '../MqttService';
-import { DataRocketDynamic } from '../Constant/interface';
+import { DataRocketDynamic, ActionPayload } from '../Constant/interface';
+import {
+  CODE_EVENT_ACTIVE_DEVICE,
+  CODE_EVENT_UPDATE_SENSOR,
+  CODE_EVENT_UPDATE_STATE_DEVICE,
+} from '../Constant';
 import { UserMD } from '../DatabaseService/models/account';
 import { DeviceMD } from '../DatabaseService/models/devices';
 import jwt, { JwtPayload } from 'jsonwebtoken';
@@ -14,6 +19,13 @@ import { ACCOUNT_MESSAGE } from '../APIService/controller/account';
 const logger = Logger.getLogger({ name: 'SOCKET_IO' });
 
 export const SOCKET_IO_SERVICE_NAME = 'socket-io-service';
+
+export interface DataSocket {
+  mac: string;
+  userId: string;
+  deviceId: string;
+  data: any;
+}
 
 interface InfoClientSocketCache {
   [clientId: string]: {
@@ -35,23 +47,35 @@ class SocketIOInstance extends RocketService {
     this.io = new SocketIOServer({ cors: { origin: '*' } });
   }
 
-  private handleDataMqtt(payload: DataMqtt): void {
+  private handleDataMqtt(
+    payload: DataMqtt,
+    action: ActionPayload,
+    code: string
+  ): void {
+    const userId = payload.userId;
+
+    if (code === CODE_EVENT_ACTIVE_DEVICE && action == 'NOTIFY') {
+      /* [PATH: '{userId}/device/active'] */
+      if (payload.topic === '/active') {
+        this.io.emit(`${userId}/device/active`, JSON.parse(payload.data));
+      }
+    }
+  }
+
+  private handleFromDatabase(
+    payload: DataSocket,
+    action: ActionPayload,
+    code: string
+  ): void {
     const userId = payload.userId;
     const deviceId = payload.deviceId;
-    const mac = payload.mac;
-    const whereEmit = payload.emitEvent;
-    const action = payload.action;
 
-    if (userId && mac && whereEmit && action == 'NOTIFY') {
-      /* push message to user client */
-
-      /* [PATH: '{userId}/device/active'] */
-      if (whereEmit === 'active') {
-        this.io.emit(`${userId}/device/active`, JSON.parse(payload.data));
-      } else if (whereEmit === 'sensor') {
-        /* [PATH: '{userId}/{deviceId}/sensor'] */
-        this.io.emit(`${userId}/${deviceId}/sensor`, JSON.parse(payload.data));
-      }
+    if (code === CODE_EVENT_UPDATE_SENSOR && action == 'NOTIFY') {
+      /* [PATH: '{userId}/{deviceId}/sensor'] */
+      this.io.emit(`${userId}/${deviceId}/sensor`, payload.data);
+    } else if (code === CODE_EVENT_UPDATE_STATE_DEVICE && action == 'NOTIFY') {
+      /* [PATH: '{userId}/{deviceId}/state'] */
+      this.io.emit(`${userId}/${deviceId}/status`, payload.data);
     }
   }
 
@@ -60,7 +84,9 @@ class SocketIOInstance extends RocketService {
     logger.info(`received message form ${pay.service}`);
 
     if (pay.service === 'mqtt-service') {
-      this.handleDataMqtt(pay.payload as DataMqtt);
+      this.handleDataMqtt(pay.payload as DataMqtt, pay.action, pay.code);
+    } else if (pay.service === 'db-service') {
+      this.handleFromDatabase(pay.payload as DataSocket, pay.action, pay.code);
     }
   }
 

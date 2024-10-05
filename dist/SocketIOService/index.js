@@ -50,6 +50,9 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
         if (op[0] & 5) throw op[1]; return { value: op[0] ? op[1] : void 0, done: true };
     }
 };
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.SOCKET_IO_SERVICE_NAME = void 0;
 /* node_module import */
@@ -57,31 +60,45 @@ var sitka_1 = require("sitka");
 var socket_io_1 = require("socket.io");
 /* my import */
 var ManageService_1 = require("../ManageService");
-var middleware_1 = require("./middleware");
+var account_1 = require("../DatabaseService/models/account");
+var devices_1 = require("../DatabaseService/models/devices");
+var jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
+var account_2 = require("../APIService/controller/account");
 var logger = sitka_1.Logger.getLogger({ name: 'SOCKET_IO' });
 exports.SOCKET_IO_SERVICE_NAME = 'socket-io-service';
 var SocketIOInstance = /** @class */ (function (_super) {
     __extends(SocketIOInstance, _super);
     function SocketIOInstance(port) {
         var _this = _super.call(this, exports.SOCKET_IO_SERVICE_NAME) || this;
+        _this.cacheInfoUser = {};
         _this.port = port;
         // this.server = createServer();
         _this.io = new socket_io_1.Server({ cors: { origin: '*' } });
         return _this;
     }
+    SocketIOInstance.prototype.handleDataMqtt = function (payload) {
+        var userId = payload.userId;
+        var deviceId = payload.deviceId;
+        var mac = payload.mac;
+        var whereEmit = payload.emitEvent;
+        var action = payload.action;
+        if (userId && mac && whereEmit && action == 'NOTIFY') {
+            /* push message to user client */
+            /* [PATH: '{userId}/device/active'] */
+            if (whereEmit === 'active') {
+                this.io.emit("".concat(userId, "/device/active"), JSON.parse(payload.data));
+            }
+            else if (whereEmit === 'sensor') {
+                /* [PATH: '{userId}/{deviceId}/sensor'] */
+                this.io.emit("".concat(userId, "/").concat(deviceId, "/sensor"), JSON.parse(payload.data));
+            }
+        }
+    };
     SocketIOInstance.prototype.onReceiveMessage = function (payload) {
         var pay = JSON.parse(payload);
         logger.info("received message form ".concat(pay.service));
         if (pay.service === 'mqtt-service') {
-            var childPayload = pay.payload;
-            var userId = childPayload.userId;
-            var mac = childPayload.mac;
-            var whereEmit = childPayload.emitEvent;
-            var action = childPayload.action;
-            if (userId && mac && whereEmit && action.includes('NOTIFY')) {
-                /* push message to user client */
-                this.io.emit("".concat(userId, "/").concat(mac, "/").concat(whereEmit), childPayload.data);
-            }
+            this.handleDataMqtt(pay.payload);
         }
     };
     SocketIOInstance.prototype.onConnected = function (socket) {
@@ -89,6 +106,8 @@ var SocketIOInstance = /** @class */ (function (_super) {
     };
     SocketIOInstance.prototype.onDisconnected = function (socket, reason) {
         logger.info('Client disconnected => ', socket.id, 'reason: ', reason);
+        /* remove client when disconnect */
+        delete this.cacheInfoUser[socket.id];
     };
     SocketIOInstance.prototype.onConnection = function (socket) {
         var _this = this;
@@ -97,11 +116,61 @@ var SocketIOInstance = /** @class */ (function (_super) {
             return _this.onDisconnected(socket, reason);
         });
     };
+    SocketIOInstance.prototype.validateAuthentication = function (socket, next) {
+        return __awaiter(this, void 0, void 0, function () {
+            var token, decoded, user_1, error_1;
+            var _this = this;
+            return __generator(this, function (_a) {
+                switch (_a.label) {
+                    case 0:
+                        token = socket.handshake.auth['token'];
+                        if (!token) {
+                            return [2 /*return*/, next(new Error(JSON.stringify({ code: '108015', message: account_2.ACCOUNT_MESSAGE['108015'] })))];
+                        }
+                        _a.label = 1;
+                    case 1:
+                        _a.trys.push([1, 4, , 5]);
+                        decoded = jsonwebtoken_1.default.verify(token, process.env.JWT_SIGNATURE_SECRET || 'secret');
+                        if (!decoded.email) return [3 /*break*/, 3];
+                        return [4 /*yield*/, account_1.UserMD.findOne({ email: decoded.email })];
+                    case 2:
+                        user_1 = _a.sent();
+                        if (user_1 === null) {
+                            return [2 /*return*/, next(new Error(JSON.stringify({
+                                    code: '108001',
+                                    message: account_2.ACCOUNT_MESSAGE['108001'],
+                                })))];
+                        }
+                        devices_1.DeviceMD.find({
+                            by_user: user_1._id,
+                            state: 'active',
+                        })
+                            .select('_id')
+                            .exec()
+                            .then(function (_devices) {
+                            _this.cacheInfoUser[socket.id] = {
+                                userId: user_1._id.toString(),
+                                devices: _devices.map(function (d) { return d._id.toString(); }),
+                            };
+                        })
+                            .catch(function (err) {
+                            logger.error(err);
+                        });
+                        _a.label = 3;
+                    case 3: return [2 /*return*/, next()];
+                    case 4:
+                        error_1 = _a.sent();
+                        return [2 /*return*/, next(new Error(JSON.stringify({ code: '108010', message: account_2.ACCOUNT_MESSAGE['108010'] })))];
+                    case 5: return [2 /*return*/];
+                }
+            });
+        });
+    };
     SocketIOInstance.prototype.start = function () {
         return __awaiter(this, void 0, void 0, function () {
             return __generator(this, function (_a) {
                 // logger.info('Starting SocketIO instance');
-                this.io.use(middleware_1.main_auth.validate_token);
+                this.io.use(this.validateAuthentication.bind(this));
                 this.io.on('connection', this.onConnection.bind(this));
                 /* start listen socket-io on port */
                 this.io.listen(this.port);
