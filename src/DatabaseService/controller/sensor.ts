@@ -35,9 +35,9 @@ export const updateSensor = async (
       { by_device: deviceId },
       {
         $push: {
-          smoke: { value: smoke, update_at: new Date() },
-          'env.temperature': { value: temperature, update_at: new Date() },
-          'env.humidity': { value: humidity, update_at: new Date() },
+          smoke: { value: smoke, update_at: date },
+          'env.temperature': { value: temperature, update_at: date },
+          'env.humidity': { value: humidity, update_at: date },
         },
       }
     ).exec();
@@ -54,20 +54,20 @@ export const updateSensor = async (
     const newSensor = new SensorMD({
       by_device: deviceId,
       env: {
-        humidity: humidity ? [{ value: humidity, update_at: new Date() }] : [],
+        humidity: humidity ? [{ value: humidity, update_at: date }] : [],
         temperature: temperature
-          ? [{ value: temperature, update_at: new Date() }]
+          ? [{ value: temperature, update_at: date }]
           : [],
       },
-      smoke: smoke ? [{ value: smoke, update_at: new Date() }] : [],
+      smoke: smoke ? [{ value: smoke, update_at: date }] : [],
     });
     await newSensor.save();
 
     return {
-      smoke: { value: smoke, time_at: new Date() },
+      smoke: { value: smoke, time_at: date },
       env: {
-        humidity: { value: humidity, time_at: new Date() },
-        temperature: { value: temperature, time_at: new Date() },
+        humidity: { value: humidity, time_at: date },
+        temperature: { value: temperature, time_at: date },
       },
     };
   }

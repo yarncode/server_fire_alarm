@@ -4,6 +4,7 @@ import express from 'express';
 /* my import */
 import routerAccount from './account';
 import routerDevice from './devices';
+import routerSensor from './sensor';
 
 const teencode = `
 <pre>
@@ -25,4 +26,5 @@ export default (app: express.Application) => {
     app.get('/', (req, res) => res.send(teencode))
     app.use('/api/v1/account', routerAccount);
     app.use('/api/v1/device', routerDevice);
+    app.use('/api/v1/sensor', routerSensor);
 }
