@@ -9,6 +9,7 @@ import {
   DeviceMD,
   NodeType,
   NodeTypeList,
+  DeviceSettingMD,
 } from '../../DatabaseService/models/devices';
 
 interface CreateDevicePayload {
@@ -43,7 +44,10 @@ export type DeviceCode =
   | '107011'
   | '107012'
   | '107013'
-  | '107014';
+  | '107014'
+  | '107015'
+  | '107016'
+  | '107017';
 export const DEVICE_MESSAGE: { [key in DeviceCode]: string } = {
   '107000': 'None',
   '107001': 'Device not found',
@@ -60,6 +64,9 @@ export const DEVICE_MESSAGE: { [key in DeviceCode]: string } = {
   '107012': 'Device update successfully',
   '107013': 'Device remove successfully',
   '107014': 'Device not owned by user',
+  '107015': 'Device not found setting',
+  '107016': 'Missing field',
+  '107017': 'Setting saved successfully',
 };
 
 class Device {
@@ -114,14 +121,13 @@ class Device {
   /* {for user}: [GET] /device/info */
   async device_info(req: Request, res: Response): Promise<any> {
     try {
-      const { mac } = req.body;
+      const { id } = req.query;
 
       /* get device if found */
-      const device = await DeviceMD.findOne({ mac, state: 'active' }).select([
-        '-_id',
-        '-__v',
-        '-by_user',
-      ]);
+      const device = await DeviceMD.findOne({
+        _id: id,
+        state: 'active',
+      }).select(['-_id', '-__v', '-by_user']);
 
       if (device === null) {
         return res
@@ -141,7 +147,114 @@ class Device {
     }
   }
 
-  /* {for device}: [GET] /device/new */
+  /* {for user}: [POST] /device/setting */
+  async save_device_setting(req: Request, res: Response): Promise<any> {
+    try {
+      const {
+        threshold: { temperature, humidity, smoke },
+      } = req.body;
+      const { id } = req.query;
+
+      /* find setting */
+      const _setting = await DeviceSettingMD.findOne({ deviceId: id });
+
+      /* create new if not found */
+      if (!_setting) {
+        const newSetting = new DeviceSettingMD({
+          deviceId: id,
+          threshold: {
+            temperature: {
+              start: temperature?.start || 0,
+              end: temperature?.end || 0,
+            },
+            humidity: {
+              start: humidity?.start || 0,
+              end: humidity?.end || 0,
+            },
+            smoke: {
+              start: smoke?.start || 0,
+              end: smoke?.end || 0,
+            },
+          },
+        });
+
+        /* save new setting */
+        await newSetting.save();
+
+        return res.status(200).json({
+          code: '107017',
+          message: DEVICE_MESSAGE['107017'],
+        });
+      }
+
+      /* update setting */
+      if (temperature?.start) {
+        _setting.$set('threshold.temperature.start', temperature.start);
+      }
+
+      if (temperature?.end) {
+        _setting.$set('threshold.temperature.end', temperature.end);
+      }
+
+      if (humidity?.start) {
+        _setting.$set('threshold.humidity.start', humidity.start);
+      }
+
+      if (humidity?.end) {
+        _setting.$set('threshold.humidity.end', humidity.end);
+      }
+
+      if (smoke?.start) {
+        _setting.$set('threshold.smoke.start', smoke.start);
+      }
+
+      if (smoke?.end) {
+        _setting.$set('threshold.smoke.end', smoke.end);
+      }
+
+      /* save setting */
+      await _setting.save();
+
+      return res.status(200).json({
+        code: '107017',
+        message: DEVICE_MESSAGE['107017'],
+      });
+    } catch (error) {
+      console.log(error);
+      return res
+        .status(500)
+        .json({ code: '107003', message: DEVICE_MESSAGE['107003'] });
+    }
+  }
+
+  /* {for user}: [GET] /device/setting */
+  async device_setting(req: Request, res: Response): Promise<any> {
+    try {
+      const { id } = req.query;
+
+      const setting = await DeviceSettingMD.findOne({
+        device: id,
+      }).select(['-_id', '-__v']);
+
+      if (setting === null) {
+        return res
+          .status(400)
+          .json({ code: '107015', message: DEVICE_MESSAGE['107015'] });
+      }
+
+      return res.status(200).json({
+        code: '107000',
+        message: DEVICE_MESSAGE['107000'],
+        info: setting.toObject(),
+      });
+    } catch (error) {
+      return res
+        .status(500)
+        .json({ code: '107011', message: DEVICE_MESSAGE['107011'] });
+    }
+  }
+
+  /* {for device}: [POST] /device/new */
   async create_device(req: Request, res: Response): Promise<any> {
     try {
       const { email, mac, type_node }: CreateDevicePayload = req.body;
@@ -239,10 +352,11 @@ class Device {
   /* {for user}: [POST] /device/info/update */
   async update_device(req: Request, res: Response): Promise<any> {
     try {
-      const { name, desc, mac }: UpdateDevicePayload = req.body;
+      const { name, desc }: UpdateDevicePayload = req.body;
+      const { id } = req.query;
 
       /* get device if found */
-      const device = await DeviceMD.findOne({ mac });
+      const device = await DeviceMD.findOne({ _id: id });
 
       if (device === null) {
         return res
@@ -266,10 +380,10 @@ class Device {
   /* {for user}: [POST] /device/remove */
   async remove_device(req: Request, res: Response): Promise<any> {
     try {
-      const { mac } = req.body;
+      const { id } = req.query;
 
       /* get device if found */
-      const device = await DeviceMD.findOne({ mac });
+      const device = await DeviceMD.findOne({ _id: id });
 
       if (device === null) {
         return res

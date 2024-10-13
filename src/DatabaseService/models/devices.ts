@@ -4,13 +4,47 @@ import mongoose, { Schema } from 'mongoose';
 import { MODEL_USER_NAME } from './account';
 
 export interface DataStateDevice {
-    status: NodeStateType;
+  status: NodeStateType;
 }
 
 export const MODEL_DEVICE_NAME = 'Device';
+export const MODEL_DEVICE_SETTING_NAME = 'DeviceSetting';
+export const MODEL_DEVICE_LOGGER_NAME = 'DeviceLogger';
+
 export type NodeType = 'GATEWAY' | 'NODE' | 'UNKNOWN';
 export type NodeStateType = 'ONLINE' | 'OFFLINE';
 export const NodeTypeList = ['GATEWAY', 'NODE', 'UNKNOWN'];
+export const LoggerTypeList = ['CROSS_THRESHOLD', 'UNKNOWN'];
+
+const DeviceLogger = new Schema(
+  {
+    deviceId: { type: Schema.Types.ObjectId, required: true },
+    type: { type: Schema.Types.String, enum: LoggerTypeList, required: true },
+    raw: { type: Schema.Types.Mixed },
+    message: { type: Schema.Types.String, required: true },
+  },
+  { timestamps: true }
+);
+
+const DeviceSetting = new Schema({
+  deviceId: { type: Schema.Types.ObjectId, required: true },
+  threshold: {
+    type: Schema.Types.Mixed,
+    required: true,
+    temperature: {
+      start: { type: Schema.Types.Number, required: true },
+      end: { type: Schema.Types.Number, required: true },
+    },
+    humidity: {
+      start: { type: Schema.Types.Number, required: true },
+      end: { type: Schema.Types.Number, required: true },
+    },
+    smoke: {
+      start: { type: Schema.Types.Number, required: true },
+      end: { type: Schema.Types.Number, required: true },
+    },
+  },
+});
 
 const Device = new Schema(
   {
@@ -48,5 +82,10 @@ const Device = new Schema(
 );
 
 const DeviceMD = mongoose.model(MODEL_DEVICE_NAME, Device);
+const DeviceSettingMD = mongoose.model(
+  MODEL_DEVICE_SETTING_NAME,
+  DeviceSetting
+);
+const DeviceLoggerMD = mongoose.model(MODEL_DEVICE_LOGGER_NAME, DeviceLogger);
 
-export { DeviceMD };
+export { DeviceMD, DeviceSettingMD, DeviceLoggerMD };

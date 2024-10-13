@@ -37,7 +37,8 @@ export const main_auth = {
   },
   validate_owner: async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const { mac, email } = req.body;
+      const { email } = req.body;
+      const { id } = req.query;
 
       const user = await UserMD.findOne({ email });
 
@@ -48,7 +49,7 @@ export const main_auth = {
         } as DeviceResponse);
       }
 
-      const device = await DeviceMD.findOne({ by_user: user._id, mac });
+      const device = await DeviceMD.findOne({ _id: id });
 
       if (device === null) {
         return res.status(400).json({

@@ -13,6 +13,18 @@ router.get(
   device_auth.validate_owner,
   Device.device_info
 );
+router.get(
+  '/setting',
+  account_auth.validate_token,
+  device_auth.validate_owner,
+  Device.device_setting
+);
+router.post(
+  '/setting',
+  account_auth.validate_token,
+  device_auth.validate_owner,
+  Device.save_device_setting
+);
 router.get('/info/list', account_auth.validate_token, Device.device_list);
 router.post(
   '/new',
