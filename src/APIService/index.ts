@@ -1,10 +1,11 @@
 /* node_module import */
 import { Logger } from 'sitka';
-import { RocketService } from '../ManageService';
 import express from 'express';
 import cors from 'cors';
+import morgan from 'morgan';
 
 /* my import */
+import { RocketService } from '../ManageService';
 import routerSetup from './router/center';
 
 const logger = Logger.getLogger({ name: 'API' });
@@ -30,6 +31,7 @@ class APIInstance extends RocketService {
     /* setup body parser */
     this.app.use(express.urlencoded({ extended: true }));
     this.app.use(express.json());
+    this.app.use(morgan('dev'));
     this.app.use(
       cors({
         origin: '*',

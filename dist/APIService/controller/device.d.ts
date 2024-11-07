@@ -3,7 +3,7 @@ export interface DeviceResponse {
     code: DeviceCode;
     message: string;
 }
-export type DeviceCode = '107000' | '107001' | '107002' | '107003' | '107004' | '107005' | '107006' | '107007' | '107008' | '107009' | '107010' | '107011' | '107012' | '107013' | '107014';
+export type DeviceCode = '107000' | '107001' | '107002' | '107003' | '107004' | '107005' | '107006' | '107007' | '107008' | '107009' | '107010' | '107011' | '107012' | '107013' | '107014' | '107015' | '107016' | '107017';
 export declare const DEVICE_MESSAGE: {
     [key in DeviceCode]: string;
 };
@@ -12,6 +12,8 @@ declare class Device {
     private generateToken;
     device_list(req: Request, res: Response): Promise<any>;
     device_info(req: Request, res: Response): Promise<any>;
+    save_device_setting(req: Request, res: Response): Promise<any>;
+    device_setting(req: Request, res: Response): Promise<any>;
     create_device(req: Request, res: Response): Promise<any>;
     update_device(req: Request, res: Response): Promise<any>;
     remove_device(req: Request, res: Response): Promise<any>;

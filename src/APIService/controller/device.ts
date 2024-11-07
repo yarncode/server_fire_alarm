@@ -304,6 +304,7 @@ class Device {
             token: device.token,
           },
         });
+        
       } else {
         /* device not found => goto create new */
 

@@ -21,10 +21,11 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.API_SERVICE_NAME = void 0;
 /* node_module import */
 var sitka_1 = require("sitka");
-var ManageService_1 = require("../ManageService");
 var express_1 = __importDefault(require("express"));
 var cors_1 = __importDefault(require("cors"));
+var morgan_1 = __importDefault(require("morgan"));
 /* my import */
+var ManageService_1 = require("../ManageService");
 var center_1 = __importDefault(require("./router/center"));
 var logger = sitka_1.Logger.getLogger({ name: 'API' });
 exports.API_SERVICE_NAME = 'api-service';
@@ -46,6 +47,7 @@ var APIInstance = /** @class */ (function (_super) {
         /* setup body parser */
         this.app.use(express_1.default.urlencoded({ extended: true }));
         this.app.use(express_1.default.json());
+        this.app.use((0, morgan_1.default)('dev'));
         this.app.use((0, cors_1.default)({
             origin: '*',
         }));

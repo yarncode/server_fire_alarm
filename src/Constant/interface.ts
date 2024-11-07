@@ -9,7 +9,7 @@ export type ServiceType =
   | typeof MQTT_SERVICE_NAME
   | typeof SOCKET_IO_SERVICE_NAME;
 
-export type ActionPayload = 'GET' | 'SET' | 'NOTIFY';
+export type ActionPayload = 'GET' | 'SET' | 'NOTIFY' | 'CONTROL' | 'CONFIG';
 
 export interface PayloadRocket {
   [key: string]: any;

@@ -9,13 +9,18 @@ import { DataMqtt } from '../MqttService';
 import { DataSocket } from '../SocketIOService';
 import { DataRocketDynamic, ActionPayload } from '../Constant/interface';
 import {
+  CODE_EVENT_UPDATE_INPUT,
+  CODE_EVENT_UPDATE_OUTPUT,
   CODE_EVENT_UPDATE_SENSOR,
   CODE_EVENT_UPDATE_STATE_DEVICE,
 } from '../Constant';
 import { updateSensor, ResponseDataSensor } from './controller/sensor';
 import { updateStateDevice } from './controller/device';
+import { updateGpio } from './controller/gpio';
+
 import { DataSensor } from './models/sensor';
 import { DataStateDevice } from './models/devices';
+import { DataInfoIO, GpioState } from './models/gpio';
 
 const logger = Logger.getLogger({ name: 'DATABASE' });
 
@@ -23,6 +28,14 @@ export interface DeviceInfo {
   userId: string;
   deviceId: string;
   mac: string;
+}
+
+export interface IoState extends DeviceInfo {
+  data: GpioState;
+}
+
+export interface InfoIo extends DeviceInfo {
+  data: DataInfoIO;
 }
 
 export interface InfoSensor extends DeviceInfo {
@@ -41,6 +54,7 @@ class DatabaseInstance extends RocketService {
     this.port = port;
     this.queueSensor = new msgQueue('sensor');
     this.queueStateDevice = new msgQueue('state-device');
+    this.queueStateIO = new msgQueue('state-io');
   }
 
   private handleDataMqtt(
@@ -52,31 +66,56 @@ class DatabaseInstance extends RocketService {
     const deviceId = payload.deviceId;
     const mac = payload.mac;
 
-    if (
-      code === CODE_EVENT_UPDATE_SENSOR &&
-      action == 'SET' &&
-      typeof payload.data === 'string'
-    ) {
-      /* push message to user client */
+    /* check data action  */
+    if (action === 'SET') {
+      /* check data type  */
+      if (typeof payload.data === 'string') {
+        /* check code data */
+        if (code === CODE_EVENT_UPDATE_SENSOR) {
+          /* push message to user client */
 
-      /* [PATH: '{userId}/{deviceId}/sensor'] */
-      const sensorPayload: DataSensor = JSON.parse(payload.data);
-      const data: InfoSensor = {
-        userId,
-        deviceId,
-        mac,
-        data: sensorPayload,
-      };
-      this.queueSensor.add(data);
-    } else if (code === CODE_EVENT_UPDATE_STATE_DEVICE && action == 'SET') {
-      const statePayload: DataStateDevice = payload.data;
-      const data: InfoStateDevice = {
-        userId,
-        deviceId,
-        mac,
-        data: statePayload,
-      };
-      this.queueStateDevice.add(data);
+          /* [PATH: '{userId}/{deviceId}/sensor'] */
+          const sensorPayload: DataSensor = JSON.parse(payload.data);
+          const data: InfoSensor = {
+            userId,
+            deviceId,
+            mac,
+            data: sensorPayload,
+          };
+          this.queueSensor.add(data);
+        } else if (code === CODE_EVENT_UPDATE_OUTPUT) {
+          /* [PATH: '{userId}/{deviceId}/output'] */
+          const gpioPayload: GpioState = JSON.parse(payload.data);
+          const data: IoState = {
+            userId,
+            deviceId,
+            mac,
+            data: gpioPayload,
+          };
+          this.queueStateIO.add(data);
+        } else if (code === CODE_EVENT_UPDATE_INPUT) {
+          /* [PATH: '{userId}/{deviceId}/input'] */
+          const gpioPayload: GpioState = JSON.parse(payload.data);
+          const data: IoState = {
+            userId,
+            deviceId,
+            mac,
+            data: gpioPayload,
+          };
+          this.queueStateIO.add(data);
+        }
+      } else {
+        if (code === CODE_EVENT_UPDATE_STATE_DEVICE) {
+          const statePayload: DataStateDevice = payload.data;
+          const data: InfoStateDevice = {
+            userId,
+            deviceId,
+            mac,
+            data: statePayload,
+          };
+          this.queueStateDevice.add(data);
+        }
+      }
     }
   }
 
@@ -91,6 +130,18 @@ class DatabaseInstance extends RocketService {
       done(error as Error, null);
     }
     /* handler job */
+  }
+
+  private async handleUpdateIo(
+    job: msgQueue.Job<IoState>,
+    done: msgQueue.DoneCallback
+  ): Promise<void> {
+    try {
+      const res: GpioState = await updateGpio(job.data);
+      done(null, res); // done handle save data sensor
+    } catch (error) {
+      done(error as Error, null);
+    }
   }
 
   private async handleUpdateStateDevice(
@@ -144,6 +195,25 @@ class DatabaseInstance extends RocketService {
     this.sendMessage('socket-io-service', data);
   }
 
+  private onHandleUpdateIoCompleted(
+    job: msgQueue.Job<IoState>,
+    result: GpioState
+  ): void {
+    const data: DataRocketDynamic<DataSocket> = {
+      service: 'db-service',
+      action: 'NOTIFY',
+      code: CODE_EVENT_UPDATE_OUTPUT,
+      payload: {
+        mac: job.data.mac,
+        userId: job.data.userId,
+        deviceId: job.data.deviceId,
+        data: result,
+      },
+    };
+
+    this.sendMessage('socket-io-service', data);
+  }
+
   override onReceiveMessage(payload: string): void {
     const pay: DataRocketDynamic = JSON.parse(payload);
     logger.info(`received message form ${pay.service}`);
@@ -168,6 +238,11 @@ class DatabaseInstance extends RocketService {
       'completed',
       this.onHandleUpdateSensorCompleted.bind(this)
     );
+    this.queueStateIO.process(this.handleUpdateIo.bind(this));
+    this.queueStateIO.on(
+      'completed',
+      this.onHandleUpdateIoCompleted.bind(this)
+    );
     this.queueStateDevice.process(this.handleUpdateStateDevice.bind(this));
     this.queueStateDevice.on(
       'completed',
@@ -187,6 +262,7 @@ class DatabaseInstance extends RocketService {
 
   port: number;
   queueSensor: msgQueue.Queue<InfoSensor>;
+  queueStateIO: msgQueue.Queue<IoState>;
   queueStateDevice: msgQueue.Queue<InfoStateDevice>;
 }
 

@@ -1,4 +1,15 @@
 "use strict";
+var __assign = (this && this.__assign) || function () {
+    __assign = Object.assign || function(t) {
+        for (var s, i = 1, n = arguments.length; i < n; i++) {
+            s = arguments[i];
+            for (var p in s) if (Object.prototype.hasOwnProperty.call(s, p))
+                t[p] = s[p];
+        }
+        return t;
+    };
+    return __assign.apply(this, arguments);
+};
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
     function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
     return new (P || (P = Promise))(function (resolve, reject) {
@@ -61,6 +72,9 @@ exports.DEVICE_MESSAGE = {
     '107012': 'Device update successfully',
     '107013': 'Device remove successfully',
     '107014': 'Device not owned by user',
+    '107015': 'Device not found setting',
+    '107016': 'Missing field',
+    '107017': 'Setting saved successfully',
 };
 var Device = /** @class */ (function () {
     function Device() {
@@ -89,7 +103,7 @@ var Device = /** @class */ (function () {
                         return [4 /*yield*/, devices_1.DeviceMD.find({
                                 by_user: user._id,
                                 state: 'active',
-                            }).select(['-_id', '-__v', '-by_user'])];
+                            }).select(['-__v', '-by_user', '-token', '-auth'])];
                     case 2:
                         devices = _a.sent();
                         if (devices === null) {
@@ -100,7 +114,7 @@ var Device = /** @class */ (function () {
                         return [2 /*return*/, res.status(200).json({
                                 code: '107002',
                                 message: exports.DEVICE_MESSAGE['107002'],
-                                info: devices,
+                                info: devices.map(function (device) { return (__assign(__assign({}, device.toObject()), { id: device._id })); }),
                             })];
                     case 3:
                         error_1 = _a.sent();
@@ -115,17 +129,16 @@ var Device = /** @class */ (function () {
     /* {for user}: [GET] /device/info */
     Device.prototype.device_info = function (req, res) {
         return __awaiter(this, void 0, void 0, function () {
-            var mac, device, error_2;
+            var id, device, error_2;
             return __generator(this, function (_a) {
                 switch (_a.label) {
                     case 0:
                         _a.trys.push([0, 2, , 3]);
-                        mac = req.body.mac;
-                        return [4 /*yield*/, devices_1.DeviceMD.findOne({ mac: mac, state: 'active' }).select([
-                                '-_id',
-                                '-__v',
-                                '-by_user',
-                            ])];
+                        id = req.query.id;
+                        return [4 /*yield*/, devices_1.DeviceMD.findOne({
+                                _id: id,
+                                state: 'active',
+                            }).select(['-_id', '-__v', '-by_user'])];
                     case 1:
                         device = _a.sent();
                         if (device === null) {
@@ -148,10 +161,124 @@ var Device = /** @class */ (function () {
             });
         });
     };
-    /* {for device}: [GET] /device/new */
+    /* {for user}: [POST] /device/setting */
+    Device.prototype.save_device_setting = function (req, res) {
+        return __awaiter(this, void 0, void 0, function () {
+            var _a, temperature, humidity, smoke, id, _setting, newSetting, error_3;
+            return __generator(this, function (_b) {
+                switch (_b.label) {
+                    case 0:
+                        _b.trys.push([0, 5, , 6]);
+                        _a = req.body.threshold, temperature = _a.temperature, humidity = _a.humidity, smoke = _a.smoke;
+                        id = req.query.id;
+                        return [4 /*yield*/, devices_1.DeviceSettingMD.findOne({ deviceId: id })];
+                    case 1:
+                        _setting = _b.sent();
+                        if (!!_setting) return [3 /*break*/, 3];
+                        newSetting = new devices_1.DeviceSettingMD({
+                            deviceId: id,
+                            threshold: {
+                                temperature: {
+                                    start: (temperature === null || temperature === void 0 ? void 0 : temperature.start) || 0,
+                                    end: (temperature === null || temperature === void 0 ? void 0 : temperature.end) || 0,
+                                },
+                                humidity: {
+                                    start: (humidity === null || humidity === void 0 ? void 0 : humidity.start) || 0,
+                                    end: (humidity === null || humidity === void 0 ? void 0 : humidity.end) || 0,
+                                },
+                                smoke: {
+                                    start: (smoke === null || smoke === void 0 ? void 0 : smoke.start) || 0,
+                                    end: (smoke === null || smoke === void 0 ? void 0 : smoke.end) || 0,
+                                },
+                            },
+                        });
+                        /* save new setting */
+                        return [4 /*yield*/, newSetting.save()];
+                    case 2:
+                        /* save new setting */
+                        _b.sent();
+                        return [2 /*return*/, res.status(200).json({
+                                code: '107017',
+                                message: exports.DEVICE_MESSAGE['107017'],
+                            })];
+                    case 3:
+                        /* update setting */
+                        if (temperature === null || temperature === void 0 ? void 0 : temperature.start) {
+                            _setting.$set('threshold.temperature.start', temperature.start);
+                        }
+                        if (temperature === null || temperature === void 0 ? void 0 : temperature.end) {
+                            _setting.$set('threshold.temperature.end', temperature.end);
+                        }
+                        if (humidity === null || humidity === void 0 ? void 0 : humidity.start) {
+                            _setting.$set('threshold.humidity.start', humidity.start);
+                        }
+                        if (humidity === null || humidity === void 0 ? void 0 : humidity.end) {
+                            _setting.$set('threshold.humidity.end', humidity.end);
+                        }
+                        if (smoke === null || smoke === void 0 ? void 0 : smoke.start) {
+                            _setting.$set('threshold.smoke.start', smoke.start);
+                        }
+                        if (smoke === null || smoke === void 0 ? void 0 : smoke.end) {
+                            _setting.$set('threshold.smoke.end', smoke.end);
+                        }
+                        /* save setting */
+                        return [4 /*yield*/, _setting.save()];
+                    case 4:
+                        /* save setting */
+                        _b.sent();
+                        return [2 /*return*/, res.status(200).json({
+                                code: '107017',
+                                message: exports.DEVICE_MESSAGE['107017'],
+                            })];
+                    case 5:
+                        error_3 = _b.sent();
+                        console.log(error_3);
+                        return [2 /*return*/, res
+                                .status(500)
+                                .json({ code: '107003', message: exports.DEVICE_MESSAGE['107003'] })];
+                    case 6: return [2 /*return*/];
+                }
+            });
+        });
+    };
+    /* {for user}: [GET] /device/setting */
+    Device.prototype.device_setting = function (req, res) {
+        return __awaiter(this, void 0, void 0, function () {
+            var id, setting, error_4;
+            return __generator(this, function (_a) {
+                switch (_a.label) {
+                    case 0:
+                        _a.trys.push([0, 2, , 3]);
+                        id = req.query.id;
+                        return [4 /*yield*/, devices_1.DeviceSettingMD.findOne({
+                                device: id,
+                            }).select(['-_id', '-__v'])];
+                    case 1:
+                        setting = _a.sent();
+                        if (setting === null) {
+                            return [2 /*return*/, res
+                                    .status(400)
+                                    .json({ code: '107015', message: exports.DEVICE_MESSAGE['107015'] })];
+                        }
+                        return [2 /*return*/, res.status(200).json({
+                                code: '107000',
+                                message: exports.DEVICE_MESSAGE['107000'],
+                                info: setting.toObject(),
+                            })];
+                    case 2:
+                        error_4 = _a.sent();
+                        return [2 /*return*/, res
+                                .status(500)
+                                .json({ code: '107011', message: exports.DEVICE_MESSAGE['107011'] })];
+                    case 3: return [2 /*return*/];
+                }
+            });
+        });
+    };
+    /* {for device}: [POST] /device/new */
     Device.prototype.create_device = function (req, res) {
         return __awaiter(this, void 0, void 0, function () {
-            var _a, email, mac, type_node, user, device, username, password, device_1, error_3;
+            var _a, email, mac, type_node, user, device, username, password, device_1, error_5;
             var _b, _c, _d, _e, _f, _g, _h, _j;
             return __generator(this, function (_k) {
                 switch (_k.label) {
@@ -234,8 +361,8 @@ var Device = /** @class */ (function () {
                             })];
                     case 6: return [3 /*break*/, 8];
                     case 7:
-                        error_3 = _k.sent();
-                        console.log(error_3);
+                        error_5 = _k.sent();
+                        console.log(error_5);
                         return [2 /*return*/, res
                                 .status(500)
                                 .json({ code: '107003', message: exports.DEVICE_MESSAGE['107003'] })];
@@ -247,13 +374,14 @@ var Device = /** @class */ (function () {
     /* {for user}: [POST] /device/info/update */
     Device.prototype.update_device = function (req, res) {
         return __awaiter(this, void 0, void 0, function () {
-            var _a, name, desc, mac, device, error_4;
+            var _a, name, desc, id, device, error_6;
             return __generator(this, function (_b) {
                 switch (_b.label) {
                     case 0:
                         _b.trys.push([0, 3, , 4]);
-                        _a = req.body, name = _a.name, desc = _a.desc, mac = _a.mac;
-                        return [4 /*yield*/, devices_1.DeviceMD.findOne({ mac: mac })];
+                        _a = req.body, name = _a.name, desc = _a.desc;
+                        id = req.query.id;
+                        return [4 /*yield*/, devices_1.DeviceMD.findOne({ _id: id })];
                     case 1:
                         device = _b.sent();
                         if (device === null) {
@@ -270,7 +398,7 @@ var Device = /** @class */ (function () {
                                 .status(200)
                                 .json({ code: '107012', message: exports.DEVICE_MESSAGE['107012'] })];
                     case 3:
-                        error_4 = _b.sent();
+                        error_6 = _b.sent();
                         return [2 /*return*/, res
                                 .status(500)
                                 .json({ code: '107003', message: exports.DEVICE_MESSAGE['107003'] })];
@@ -282,13 +410,13 @@ var Device = /** @class */ (function () {
     /* {for user}: [POST] /device/remove */
     Device.prototype.remove_device = function (req, res) {
         return __awaiter(this, void 0, void 0, function () {
-            var mac, device, error_5;
+            var id, device, error_7;
             return __generator(this, function (_a) {
                 switch (_a.label) {
                     case 0:
                         _a.trys.push([0, 3, , 4]);
-                        mac = req.body.mac;
-                        return [4 /*yield*/, devices_1.DeviceMD.findOne({ mac: mac })];
+                        id = req.query.id;
+                        return [4 /*yield*/, devices_1.DeviceMD.findOne({ _id: id })];
                     case 1:
                         device = _a.sent();
                         if (device === null) {
@@ -305,7 +433,7 @@ var Device = /** @class */ (function () {
                                 .status(200)
                                 .json({ code: '107013', message: exports.DEVICE_MESSAGE['107013'] })];
                     case 3:
-                        error_5 = _a.sent();
+                        error_7 = _a.sent();
                         return [2 /*return*/, res
                                 .status(500)
                                 .json({ code: '107003', message: exports.DEVICE_MESSAGE['107003'] })];

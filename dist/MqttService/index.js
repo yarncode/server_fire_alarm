@@ -59,6 +59,7 @@ exports.MQTT_SERVICE_NAME = void 0;
 var sitka_1 = require("sitka");
 var net_1 = __importDefault(require("net"));
 var aedes_1 = __importDefault(require("aedes"));
+var Constant_1 = require("../Constant");
 var ManageService_1 = require("../ManageService");
 var devices_1 = require("../DatabaseService/models/devices");
 var logger = sitka_1.Logger.getLogger({ name: 'MQTT' });
@@ -74,24 +75,21 @@ var MqttInstance = /** @class */ (function (_super) {
         return _this;
     }
     MqttInstance.prototype.handleDeviceActive = function (clientId, payload) {
-        if (!clientId) {
-            logger.error('Client id is not found');
-        }
         var userId = this.cacheInfoDevice[clientId].userId;
-        var deviceId = this.cacheInfoDevice[clientId].userId;
+        var deviceId = this.cacheInfoDevice[clientId].deviceId;
         var mac = this.cacheInfoDevice[clientId].mac;
         if (userId && deviceId && mac) {
             /* push message to user client */
             // logger.info(`Pushing to user: ${userId} - payload: ${payload}`);
             var data = {
                 service: 'mqtt-service',
+                action: 'NOTIFY',
+                code: Constant_1.CODE_EVENT_ACTIVE_DEVICE,
                 payload: {
-                    action: 'NOTIFY',
                     mac: mac,
                     userId: userId,
                     deviceId: deviceId,
                     topic: '/active',
-                    emitEvent: 'active',
                     data: payload,
                 },
             };
@@ -99,40 +97,58 @@ var MqttInstance = /** @class */ (function (_super) {
         }
     };
     MqttInstance.prototype.handleSensor = function (clientId, payload) {
-        if (!clientId) {
-            logger.error('Client id is not found');
-        }
         var userId = this.cacheInfoDevice[clientId].userId;
-        var deviceId = this.cacheInfoDevice[clientId].userId;
+        var deviceId = this.cacheInfoDevice[clientId].deviceId;
         var mac = this.cacheInfoDevice[clientId].mac;
         if (userId && deviceId && mac) {
             /* push message to user client */
             // logger.info(`Pushing to user: ${userId} - payload: ${payload}`);
             var data = {
                 service: 'mqtt-service',
+                action: 'SET',
+                code: Constant_1.CODE_EVENT_UPDATE_SENSOR,
                 payload: {
-                    action: 'NOTIFY',
                     mac: mac,
                     userId: userId,
                     deviceId: deviceId,
                     topic: '/sensor',
-                    emitEvent: 'sensor',
                     data: payload,
                 },
             };
-            this.sendMessage('socket-io-service', data);
+            /* set data into database */
+            this.sendMessage('db-service', data);
         }
+    };
+    MqttInstance.prototype.handleStateDevice = function (clientId, status) {
+        var data = {
+            service: 'mqtt-service',
+            action: 'SET',
+            code: Constant_1.CODE_EVENT_UPDATE_STATE_DEVICE,
+            payload: {
+                mac: this.cacheInfoDevice[clientId].mac,
+                userId: this.cacheInfoDevice[clientId].userId,
+                deviceId: this.cacheInfoDevice[clientId].deviceId,
+                topic: '/sensor',
+                data: {
+                    status: status,
+                },
+            },
+        };
+        /* set data into database */
+        this.sendMessage('db-service', data);
     };
     MqttInstance.prototype.onReceiveMessage = function (payload) {
         logger.info("Received payload: ".concat(payload));
     };
     MqttInstance.prototype.onConnected = function (client) {
         logger.info('Client connected => ', client.id);
+        this.handleStateDevice(client.id, 'ONLINE');
     };
     MqttInstance.prototype.onDisconnected = function (client) {
         logger.info('Client disconnected => ', client.id);
         /* remove client when disconnect */
         // delete this.cacheInfoDevice[client.id];
+        this.handleStateDevice(client.id, 'OFFLINE');
     };
     MqttInstance.prototype.onPing = function (packet, client) {
         logger.info("Client id: ".concat(client.id, " - Ping"));
@@ -140,6 +156,10 @@ var MqttInstance = /** @class */ (function (_super) {
     MqttInstance.prototype.onPublished = function (packet, client) {
         if (client) {
             logger.info("Client id: ".concat(client === null || client === void 0 ? void 0 : client.id, " - Published topic: ").concat(packet.topic, " length: ").concat(packet.payload.length));
+            if (!(client === null || client === void 0 ? void 0 : client.id)) {
+                logger.error('Client id is not found');
+                return;
+            }
             if (packet.topic === '/sensor') {
                 this.handleSensor(client.id, packet.payload.toString());
             }

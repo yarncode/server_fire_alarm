@@ -23,14 +23,46 @@ var __importStar = (this && this.__importStar) || function (mod) {
     return result;
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.DeviceMD = exports.NodeTypeList = exports.MODEL_DEVICE_NAME = void 0;
+exports.DeviceLoggerMD = exports.DeviceSettingMD = exports.DeviceMD = exports.LoggerTypeList = exports.NodeTypeList = exports.MODEL_DEVICE_LOGGER_NAME = exports.MODEL_DEVICE_SETTING_NAME = exports.MODEL_DEVICE_NAME = void 0;
 var mongoose_1 = __importStar(require("mongoose"));
 /* my import */
 var account_1 = require("./account");
 exports.MODEL_DEVICE_NAME = 'Device';
+exports.MODEL_DEVICE_SETTING_NAME = 'DeviceSetting';
+exports.MODEL_DEVICE_LOGGER_NAME = 'DeviceLogger';
 exports.NodeTypeList = ['GATEWAY', 'NODE', 'UNKNOWN'];
+exports.LoggerTypeList = ['CROSS_THRESHOLD', 'UNKNOWN'];
+var DeviceLogger = new mongoose_1.Schema({
+    deviceId: { type: mongoose_1.Schema.Types.ObjectId, required: true },
+    type: { type: mongoose_1.Schema.Types.String, enum: exports.LoggerTypeList, required: true },
+    raw: { type: mongoose_1.Schema.Types.Mixed },
+    message: { type: mongoose_1.Schema.Types.String, required: true },
+}, { timestamps: true });
+var DeviceSetting = new mongoose_1.Schema({
+    deviceId: { type: mongoose_1.Schema.Types.ObjectId, required: true },
+    threshold: {
+        type: mongoose_1.Schema.Types.Mixed,
+        required: true,
+        temperature: {
+            start: { type: mongoose_1.Schema.Types.Number, required: true },
+            end: { type: mongoose_1.Schema.Types.Number, required: true },
+        },
+        humidity: {
+            start: { type: mongoose_1.Schema.Types.Number, required: true },
+            end: { type: mongoose_1.Schema.Types.Number, required: true },
+        },
+        smoke: {
+            start: { type: mongoose_1.Schema.Types.Number, required: true },
+            end: { type: mongoose_1.Schema.Types.Number, required: true },
+        },
+    },
+});
 var Device = new mongoose_1.Schema({
-    by_user: { ref: account_1.MODEL_USER_NAME, type: mongoose_1.Schema.Types.ObjectId, required: true },
+    by_user: {
+        ref: account_1.MODEL_USER_NAME,
+        type: mongoose_1.Schema.Types.ObjectId,
+        required: true,
+    },
     name: { type: mongoose_1.Schema.Types.String },
     desc: { type: mongoose_1.Schema.Types.String },
     mac: { type: mongoose_1.Schema.Types.String, required: true, unique: true },
@@ -45,9 +77,21 @@ var Device = new mongoose_1.Schema({
     token: { type: mongoose_1.Schema.Types.String },
     layer: { type: mongoose_1.Schema.Types.Number },
     type: { type: mongoose_1.Schema.Types.String, enum: exports.NodeTypeList, required: true },
-    status: { type: mongoose_1.Schema.Types.String, enum: ['ONLINE', 'OFFLINE'], required: true },
-    state: { type: mongoose_1.Schema.Types.String, enum: ['removed', 'active', 'disable'], require: true }
+    status: {
+        type: mongoose_1.Schema.Types.String,
+        enum: ['ONLINE', 'OFFLINE'],
+        required: true,
+    },
+    state: {
+        type: mongoose_1.Schema.Types.String,
+        enum: ['removed', 'active', 'disable'],
+        require: true,
+    },
 }, { timestamps: true });
 var DeviceMD = mongoose_1.default.model(exports.MODEL_DEVICE_NAME, Device);
 exports.DeviceMD = DeviceMD;
+var DeviceSettingMD = mongoose_1.default.model(exports.MODEL_DEVICE_SETTING_NAME, DeviceSetting);
+exports.DeviceSettingMD = DeviceSettingMD;
+var DeviceLoggerMD = mongoose_1.default.model(exports.MODEL_DEVICE_LOGGER_NAME, DeviceLogger);
+exports.DeviceLoggerMD = DeviceLoggerMD;
 //# sourceMappingURL=devices.js.map

@@ -1,6 +1,12 @@
 import { Server as SocketIOServer, Socket } from 'socket.io';
 import { RocketService } from '../ManageService';
 export declare const SOCKET_IO_SERVICE_NAME = "socket-io-service";
+export interface DataSocket {
+    mac: string;
+    userId: string;
+    deviceId: string;
+    data: any;
+}
 interface InfoClientSocketCache {
     [clientId: string]: {
         userId: string;
@@ -10,6 +16,7 @@ interface InfoClientSocketCache {
 declare class SocketIOInstance extends RocketService {
     constructor(port: number);
     private handleDataMqtt;
+    private handleFromDatabase;
     onReceiveMessage(payload: string): void;
     onConnected(socket: Socket): void;
     onDisconnected(socket: Socket, reason: string): void;

@@ -1,12 +1,9 @@
 import { Server } from 'net';
 import Aedes, { Client, AedesPublishPacket, PingreqPacket, AuthenticateError } from 'aedes';
-import { ActionPayload } from '../Constant/interface';
 import { RocketService } from '../ManageService';
 export interface DataMqtt {
     topic: string;
     mac: string;
-    action: ActionPayload;
-    emitEvent: string;
     userId: string;
     deviceId: string;
     data: any;
@@ -23,6 +20,7 @@ declare class MqttInstance extends RocketService {
     constructor(port: number);
     private handleDeviceActive;
     private handleSensor;
+    private handleStateDevice;
     onReceiveMessage(payload: string): void;
     onConnected(client: Client): void;
     onDisconnected(client: Client): void;

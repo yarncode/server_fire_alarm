@@ -60,6 +60,7 @@ var sitka_1 = require("sitka");
 var socket_io_1 = require("socket.io");
 /* my import */
 var ManageService_1 = require("../ManageService");
+var Constant_1 = require("../Constant");
 var account_1 = require("../DatabaseService/models/account");
 var devices_1 = require("../DatabaseService/models/devices");
 var jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
@@ -76,29 +77,35 @@ var SocketIOInstance = /** @class */ (function (_super) {
         _this.io = new socket_io_1.Server({ cors: { origin: '*' } });
         return _this;
     }
-    SocketIOInstance.prototype.handleDataMqtt = function (payload) {
+    SocketIOInstance.prototype.handleDataMqtt = function (payload, action, code) {
         var userId = payload.userId;
-        var deviceId = payload.deviceId;
-        var mac = payload.mac;
-        var whereEmit = payload.emitEvent;
-        var action = payload.action;
-        if (userId && mac && whereEmit && action == 'NOTIFY') {
-            /* push message to user client */
+        if (code === Constant_1.CODE_EVENT_ACTIVE_DEVICE && action == 'NOTIFY') {
             /* [PATH: '{userId}/device/active'] */
-            if (whereEmit === 'active') {
+            if (payload.topic === '/active') {
                 this.io.emit("".concat(userId, "/device/active"), JSON.parse(payload.data));
             }
-            else if (whereEmit === 'sensor') {
-                /* [PATH: '{userId}/{deviceId}/sensor'] */
-                this.io.emit("".concat(userId, "/").concat(deviceId, "/sensor"), JSON.parse(payload.data));
-            }
+        }
+    };
+    SocketIOInstance.prototype.handleFromDatabase = function (payload, action, code) {
+        var userId = payload.userId;
+        var deviceId = payload.deviceId;
+        if (code === Constant_1.CODE_EVENT_UPDATE_SENSOR && action == 'NOTIFY') {
+            /* [PATH: '{userId}/{deviceId}/sensor'] */
+            this.io.emit("".concat(userId, "/").concat(deviceId, "/sensor"), payload.data);
+        }
+        else if (code === Constant_1.CODE_EVENT_UPDATE_STATE_DEVICE && action == 'NOTIFY') {
+            /* [PATH: '{userId}/{deviceId}/state'] */
+            this.io.emit("".concat(userId, "/").concat(deviceId, "/status"), payload.data);
         }
     };
     SocketIOInstance.prototype.onReceiveMessage = function (payload) {
         var pay = JSON.parse(payload);
         logger.info("received message form ".concat(pay.service));
         if (pay.service === 'mqtt-service') {
-            this.handleDataMqtt(pay.payload);
+            this.handleDataMqtt(pay.payload, pay.action, pay.code);
+        }
+        else if (pay.service === 'db-service') {
+            this.handleFromDatabase(pay.payload, pay.action, pay.code);
         }
     };
     SocketIOInstance.prototype.onConnected = function (socket) {

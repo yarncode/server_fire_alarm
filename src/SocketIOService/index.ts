@@ -10,9 +10,11 @@ import {
   CODE_EVENT_ACTIVE_DEVICE,
   CODE_EVENT_UPDATE_SENSOR,
   CODE_EVENT_UPDATE_STATE_DEVICE,
+  CODE_EVENT_UPDATE_OUTPUT,
 } from '../Constant';
 import { UserMD } from '../DatabaseService/models/account';
 import { DeviceMD } from '../DatabaseService/models/devices';
+import { GpioState } from '../DatabaseService/models/gpio';
 import jwt, { JwtPayload } from 'jsonwebtoken';
 import { ACCOUNT_MESSAGE } from '../APIService/controller/account';
 
@@ -36,6 +38,13 @@ interface InfoClientSocketCache {
 
 interface PayloadDecodeRuntimeToken extends JwtPayload {
   email: string;
+}
+
+interface BasePayload<T> {
+  mac: string;
+  userId: string;
+  deviceId: string;
+  data: T;
 }
 
 class SocketIOInstance extends RocketService {
@@ -101,8 +110,35 @@ class SocketIOInstance extends RocketService {
     delete this.cacheInfoUser[socket.id];
   }
 
+  onControl(socket: Socket, data: BasePayload<GpioState>): void {
+    logger.info('Client control => ', socket.id);
+
+    const _data: DataRocketDynamic<DataSocket> = {
+      service: 'socket-io-service',
+      action: 'CONTROL',
+      code: CODE_EVENT_UPDATE_OUTPUT,
+      payload: {
+        mac: data.mac,
+        userId: data.userId,
+        deviceId: data.deviceId,
+        data: data.data,
+      },
+    };
+
+    this.sendMessage('mqtt-service', _data);
+  }
+
+  validateBasePayload(payload: BasePayload<GpioState>): boolean {
+    return payload?.mac && payload?.userId && payload?.deviceId ? true : false;
+  }
+
   onConnection(socket: Socket): void {
     this.onConnected(socket);
+    socket.on('control_io', (_: BasePayload<GpioState>) => {
+      if (this.validateBasePayload(_)) {
+        this.onControl(socket, _);
+      }
+    });
     socket.on('disconnect', (reason: string) =>
       this.onDisconnected(socket, reason)
     );
@@ -172,7 +208,7 @@ class SocketIOInstance extends RocketService {
 
   async start() {
     // logger.info('Starting SocketIO instance');
-    this.io.use(this.validateAuthentication.bind(this));
+    // this.io.use(this.validateAuthentication.bind(this));
     this.io.on('connection', this.onConnection.bind(this));
 
     /* start listen socket-io on port */

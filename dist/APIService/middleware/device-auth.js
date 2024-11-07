@@ -72,24 +72,25 @@ exports.main_auth = {
         }
     },
     validate_owner: function (req, res, next) { return __awaiter(void 0, void 0, void 0, function () {
-        var _a, mac, email, user, device, error_1;
-        return __generator(this, function (_b) {
-            switch (_b.label) {
+        var email, id, user, device, error_1;
+        return __generator(this, function (_a) {
+            switch (_a.label) {
                 case 0:
-                    _b.trys.push([0, 3, , 4]);
-                    _a = req.body, mac = _a.mac, email = _a.email;
+                    _a.trys.push([0, 3, , 4]);
+                    email = req.body.email;
+                    id = req.query.id;
                     return [4 /*yield*/, account_1.UserMD.findOne({ email: email })];
                 case 1:
-                    user = _b.sent();
+                    user = _a.sent();
                     if (user === null) {
                         return [2 /*return*/, res.status(400).json({
                                 code: '107006',
                                 message: device_1.DEVICE_MESSAGE['107006'],
                             })];
                     }
-                    return [4 /*yield*/, devices_1.DeviceMD.findOne({ by_user: user._id, mac: mac })];
+                    return [4 /*yield*/, devices_1.DeviceMD.findOne({ _id: id })];
                 case 2:
-                    device = _b.sent();
+                    device = _a.sent();
                     if (device === null) {
                         return [2 /*return*/, res.status(400).json({
                                 code: '107014',
@@ -100,7 +101,7 @@ exports.main_auth = {
                     next();
                     return [2 /*return*/];
                 case 3:
-                    error_1 = _b.sent();
+                    error_1 = _a.sent();
                     return [2 /*return*/, res.status(400).json({
                             code: '107003',
                             message: device_1.DEVICE_MESSAGE['107003'],

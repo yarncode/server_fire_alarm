@@ -10,12 +10,15 @@ import Aedes, {
 } from 'aedes';
 
 /* my import */
-import { DataRocketDynamic } from '../Constant/interface';
+import { DataRocketDynamic, ActionPayload } from '../Constant/interface';
 import {
   CODE_EVENT_UPDATE_SENSOR,
   CODE_EVENT_ACTIVE_DEVICE,
   CODE_EVENT_UPDATE_STATE_DEVICE,
+  CODE_EVENT_UPDATE_OUTPUT,
+  CODE_EVENT_UPDATE_INPUT,
 } from '../Constant';
+import { DataSocket } from '../SocketIOService';
 import { RocketService } from '../ManageService';
 import {
   DeviceMD,
@@ -43,19 +46,26 @@ interface InfoClientMQTTCache {
   };
 }
 
+interface LinkDeviceCache {
+  [deviceId: string]: {
+    ctx: Client;
+  };
+}
+
 class MqttInstance extends RocketService {
   constructor(port: number) {
     super(MQTT_SERVICE_NAME);
-    this.cacheInfoDevice = {};
+    this.cacheInfoClient = {};
+    this.cacheLinkDevice = {};
     this.port = port;
     this.aedes = new Aedes();
     this.server = server.createServer(this.aedes.handle);
   }
 
   private handleDeviceActive(clientId: string, payload: string) {
-    const userId = this.cacheInfoDevice[clientId].userId;
-    const deviceId = this.cacheInfoDevice[clientId].deviceId;
-    const mac = this.cacheInfoDevice[clientId].mac;
+    const userId = this.cacheInfoClient[clientId].userId;
+    const deviceId = this.cacheInfoClient[clientId].deviceId;
+    const mac = this.cacheInfoClient[clientId].mac;
 
     if (userId && deviceId && mac) {
       /* push message to user client */
@@ -79,9 +89,9 @@ class MqttInstance extends RocketService {
   }
 
   private handleSensor(clientId: string, payload: string): void {
-    const userId = this.cacheInfoDevice[clientId].userId;
-    const deviceId = this.cacheInfoDevice[clientId].deviceId;
-    const mac = this.cacheInfoDevice[clientId].mac;
+    const userId = this.cacheInfoClient[clientId].userId;
+    const deviceId = this.cacheInfoClient[clientId].deviceId;
+    const mac = this.cacheInfoClient[clientId].mac;
 
     if (userId && deviceId && mac) {
       /* push message to user client */
@@ -105,15 +115,69 @@ class MqttInstance extends RocketService {
     }
   }
 
+  private handleIoOutput(clientId: string, payload: string): void {
+    const userId = this.cacheInfoClient[clientId].userId;
+    const deviceId = this.cacheInfoClient[clientId].deviceId;
+    const mac = this.cacheInfoClient[clientId].mac;
+
+    if (userId && deviceId && mac) {
+      /* push message to user client */
+      // logger.info(`Pushing to user: ${userId} - payload: ${payload}`);
+
+      const data: DataRocketDynamic<DataMqtt> = {
+        service: 'mqtt-service',
+        action: 'SET',
+        code: CODE_EVENT_UPDATE_OUTPUT,
+        payload: {
+          mac,
+          userId,
+          deviceId,
+          topic: '/output',
+          data: payload,
+        },
+      };
+
+      /* set data into database */
+      this.sendMessage('db-service', data);
+    }
+  }
+
+  private handleIoInput(clientId: string, payload: string): void {
+    const userId = this.cacheInfoClient[clientId].userId;
+    const deviceId = this.cacheInfoClient[clientId].deviceId;
+    const mac = this.cacheInfoClient[clientId].mac;
+
+    if (userId && deviceId && mac) {
+      /* push message to user client */
+      // logger.info(`Pushing to user: ${userId} - payload: ${payload}`);
+
+      const data: DataRocketDynamic<DataMqtt> = {
+        service: 'mqtt-service',
+        action: 'SET',
+        code: CODE_EVENT_UPDATE_INPUT,
+        payload: {
+          mac,
+          userId,
+          deviceId,
+          topic: '/input',
+          data: payload,
+        },
+      };
+
+      /* set data into database */
+      this.sendMessage('db-service', data);
+    }
+  }
+
   private handleStateDevice(clientId: string, status: NodeStateType) {
     const data: DataRocketDynamic<DataMqtt> = {
       service: 'mqtt-service',
       action: 'SET',
       code: CODE_EVENT_UPDATE_STATE_DEVICE,
       payload: {
-        mac: this.cacheInfoDevice[clientId].mac,
-        userId: this.cacheInfoDevice[clientId].userId,
-        deviceId: this.cacheInfoDevice[clientId].deviceId,
+        mac: this.cacheInfoClient[clientId].mac,
+        userId: this.cacheInfoClient[clientId].userId,
+        deviceId: this.cacheInfoClient[clientId].deviceId,
         topic: '/sensor',
         data: {
           status,
@@ -125,8 +189,30 @@ class MqttInstance extends RocketService {
     this.sendMessage('db-service', data);
   }
 
+  private handleDataSocketIo(
+    payload: DataSocket,
+    action: ActionPayload,
+    code: string
+  ): void {
+    // const userId = payload.userId;
+    const deviceId = payload.deviceId;
+    // const mac = payload.mac;
+
+    if (action === 'CONTROL') {
+      if (code === CODE_EVENT_UPDATE_OUTPUT) {
+        this.sendPayload(deviceId, '/control', JSON.stringify(payload.data));
+      }
+    }
+  }
+
   override onReceiveMessage(payload: string): void {
     logger.info(`Received payload: ${payload}`);
+
+    const pay: DataRocketDynamic = JSON.parse(payload);
+
+    if (pay.service === 'socket-io-service') {
+      this.handleDataSocketIo(pay.payload as DataSocket, pay.action, pay.code);
+    }
   }
 
   onConnected(client: Client): void {
@@ -139,8 +225,8 @@ class MqttInstance extends RocketService {
     logger.info('Client disconnected => ', client.id);
 
     /* remove client when disconnect */
-    // delete this.cacheInfoDevice[client.id];
     this.handleStateDevice(client.id, 'OFFLINE');
+    this.removeCacheByClientId(client.id);
   }
 
   onPing(packet: PingreqPacket, client: Client): void {
@@ -160,6 +246,10 @@ class MqttInstance extends RocketService {
 
       if (packet.topic === '/sensor') {
         this.handleSensor(client.id, packet.payload.toString());
+      } else if (packet.topic === '/output') {
+        this.handleIoOutput(client.id, packet.payload.toString());
+      } else if (packet.topic === '/input') {
+        this.handleIoInput(client.id, packet.payload.toString());
       } else if (packet.topic === '/active') {
         this.handleDeviceActive(client.id, packet.payload.toString());
       }
@@ -198,13 +288,91 @@ class MqttInstance extends RocketService {
         false
       );
     } else {
-      this.cacheInfoDevice[client.id] = {
-        userId: device.by_user.toString(),
-        deviceId: device._id.toString(),
-        mac: device.mac,
-      };
+      // this.cacheInfoClient[client.id] = {
+      //   userId: device.by_user.toString(),
+      //   deviceId: device._id.toString(),
+      //   mac: device.mac,
+      // };
+      this.setClientCache(
+        client,
+        device._id.toString(),
+        device.by_user.toString(),
+        device.mac
+      );
       done(null, true);
     }
+  }
+
+  sendPayload(id: string, topic: string, msg: string) {
+    const _ctx: Client | undefined = this.getClientByDeviceId(id);
+    if (_ctx) {
+      console.log(
+        'Publish to device: ',
+        id,
+        ' - topic: ',
+        topic,
+        ' - msg: ',
+        msg
+      );
+
+      _ctx.publish(
+        {
+          cmd: 'publish',
+          topic,
+          payload: msg,
+          dup: false,
+          retain: false,
+          qos: 1,
+        },
+        (err) => {}
+      );
+    }
+  }
+
+  setClientCache(
+    client: Client,
+    deviceId: string,
+    userId: string,
+    mac: string
+  ) {
+    this.cacheInfoClient[client.id] = {
+      userId,
+      deviceId,
+      mac,
+    };
+    this.cacheLinkDevice[deviceId] = {
+      ctx: client,
+    };
+  }
+
+  getClientByDeviceId(deviceId: string): Client | undefined {
+    return deviceId in this.cacheLinkDevice
+      ? this.cacheLinkDevice[deviceId].ctx
+      : undefined;
+  }
+
+  getClientByClientId(clientId: string): Client | undefined {
+    return this.cacheInfoClient[clientId].deviceId
+      ? this.cacheLinkDevice[this.cacheInfoClient[clientId].deviceId].ctx
+      : undefined;
+  }
+
+  removeCacheByDeviceId(deviceId: string) {
+    const _clientId = this.cacheLinkDevice[deviceId].ctx.id;
+    const _deviceId = deviceId;
+
+    delete this.cacheInfoClient[_clientId];
+    if (this.cacheLinkDevice[_deviceId].ctx.closed) {
+      delete this.cacheLinkDevice[_deviceId];
+    }
+  }
+
+  removeCacheByClientId(clientId: string) {
+    const _deviceId = this.cacheInfoClient[clientId].deviceId;
+    const _clientId = clientId;
+
+    delete this.cacheInfoClient[_clientId];
+    delete this.cacheLinkDevice[_deviceId];
   }
 
   async start() {
@@ -233,7 +401,8 @@ class MqttInstance extends RocketService {
   port: number;
   aedes: Aedes;
   server: Server;
-  cacheInfoDevice: InfoClientMQTTCache;
+  cacheInfoClient: InfoClientMQTTCache;
+  cacheLinkDevice: LinkDeviceCache;
 }
 
 export default new MqttInstance(

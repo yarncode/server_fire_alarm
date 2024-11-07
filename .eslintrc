@@ -9,6 +9,7 @@
 	],
 	"rules": {
 		// "indent": ["error", "tab"],
-		"quotes": ["error", "single"]
+		"quotes": ["error", "single"],
+		"no-empty-function": "off"
 	}
 }
