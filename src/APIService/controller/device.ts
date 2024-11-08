@@ -4,13 +4,19 @@ import jwt from 'jsonwebtoken';
 import { v4 as uuid } from 'uuid';
 
 /* my import */
+import { DataApi } from '..';
+import { RocketService } from '../../ManageService';
+import { controller } from './common';
 import { UserMD } from '../../DatabaseService/models/account';
+import { IoMD } from '../../DatabaseService/models/gpio';
 import {
   DeviceMD,
   NodeType,
   NodeTypeList,
   DeviceSettingMD,
 } from '../../DatabaseService/models/devices';
+import { DataRocketDynamic } from '../../Constant/interface';
+import { CODE_EVENT_SYNC_THRESHOLD } from '../../Constant';
 
 interface CreateDevicePayload {
   email: string;
@@ -147,6 +153,34 @@ class Device {
     }
   }
 
+  /* {for user}: [GET] /device/info */
+  async io_info(req: Request, res: Response): Promise<any> {
+    try {
+      const { id } = req.query;
+
+      /* get device if found */
+      const io = await IoMD.findOne({
+        by_device: id,
+      }).select(['-_id', '-__v', '-by_user', '-by_device']);
+
+      if (io === null) {
+        return res
+          .status(400)
+          .json({ code: '107001', message: DEVICE_MESSAGE['107001'] });
+      }
+
+      return res.status(200).json({
+        code: '107002',
+        message: DEVICE_MESSAGE['107002'],
+        info: io.toObject(),
+      });
+    } catch (error) {
+      return res
+        .status(500)
+        .json({ code: '107011', message: DEVICE_MESSAGE['107011'] });
+    }
+  }
+
   /* {for user}: [POST] /device/setting */
   async save_device_setting(req: Request, res: Response): Promise<any> {
     try {
@@ -156,12 +190,12 @@ class Device {
       const { id } = req.query;
 
       /* find setting */
-      const _setting = await DeviceSettingMD.findOne({ deviceId: id });
+      const _setting = await DeviceSettingMD.findOne({ by_device: id });
 
       /* create new if not found */
       if (!_setting) {
         const newSetting = new DeviceSettingMD({
-          deviceId: id,
+          by_device: id,
           threshold: {
             temperature: {
               start: temperature?.start || 0,
@@ -180,6 +214,23 @@ class Device {
 
         /* save new setting */
         await newSetting.save();
+
+        controller.sendMessage(req.app.locals['_ctx'] as RocketService, () => {
+          const _data: DataRocketDynamic<DataApi> = {
+            service: 'api-service',
+            action: 'CONFIG',
+            code: CODE_EVENT_SYNC_THRESHOLD,
+            payload: {
+              mac: req.body['_mac'],
+              deviceId: req.body['_device_id'],
+              userId: req.body['_user_id'],
+              data: {
+                threshold: newSetting.threshold,
+              },
+            },
+          };
+          return _data;
+        });
 
         return res.status(200).json({
           code: '107017',
@@ -215,6 +266,23 @@ class Device {
       /* save setting */
       await _setting.save();
 
+      controller.sendMessage(req.app.locals['_ctx'] as RocketService, () => {
+        const _data: DataRocketDynamic<DataApi> = {
+          service: 'api-service',
+          action: 'CONFIG',
+          code: CODE_EVENT_SYNC_THRESHOLD,
+          payload: {
+            mac: req.body['_mac'],
+            deviceId: req.body['_device_id'],
+            userId: req.body['_user_id'],
+            data: {
+              threshold: _setting.threshold,
+            },
+          },
+        };
+        return _data;
+      });
+
       return res.status(200).json({
         code: '107017',
         message: DEVICE_MESSAGE['107017'],
@@ -233,8 +301,8 @@ class Device {
       const { id } = req.query;
 
       const setting = await DeviceSettingMD.findOne({
-        device: id,
-      }).select(['-_id', '-__v']);
+        by_device: id,
+      }).select(['-_id', '-__v', '-by_device']);
 
       if (setting === null) {
         return res
@@ -304,7 +372,6 @@ class Device {
             token: device.token,
           },
         });
-        
       } else {
         /* device not found => goto create new */
 

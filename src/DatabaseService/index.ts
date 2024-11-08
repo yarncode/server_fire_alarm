@@ -5,7 +5,7 @@ import msgQueue from 'bull';
 
 /* my import */
 import { RocketService } from '../ManageService';
-import { DataMqtt } from '../MqttService';
+import { DataMqtt, NotifyIoPayload } from '../MqttService';
 import { DataSocket } from '../SocketIOService';
 import { DataRocketDynamic, ActionPayload } from '../Constant/interface';
 import {
@@ -13,14 +13,20 @@ import {
   CODE_EVENT_UPDATE_OUTPUT,
   CODE_EVENT_UPDATE_SENSOR,
   CODE_EVENT_UPDATE_STATE_DEVICE,
+  CODE_EVENT_SYNC_GPIO,
 } from '../Constant';
 import { updateSensor, ResponseDataSensor } from './controller/sensor';
 import { updateStateDevice } from './controller/device';
-import { updateGpio } from './controller/gpio';
+import {
+  updateGpio,
+  createGpio,
+  ResponseGpioState,
+  ResponseInfoIo,
+} from './controller/gpio';
 
 import { DataSensor } from './models/sensor';
 import { DataStateDevice } from './models/devices';
-import { DataInfoIO, GpioState } from './models/gpio';
+import { DataStateInfoIO, GpioState } from './models/gpio';
 
 const logger = Logger.getLogger({ name: 'DATABASE' });
 
@@ -35,7 +41,7 @@ export interface IoState extends DeviceInfo {
 }
 
 export interface InfoIo extends DeviceInfo {
-  data: DataInfoIO;
+  data: DataStateInfoIO;
 }
 
 export interface InfoSensor extends DeviceInfo {
@@ -55,6 +61,7 @@ class DatabaseInstance extends RocketService {
     this.queueSensor = new msgQueue('sensor');
     this.queueStateDevice = new msgQueue('state-device');
     this.queueStateIO = new msgQueue('state-io');
+    this.queueSyncIo = new msgQueue('sync-io');
   }
 
   private handleDataMqtt(
@@ -103,6 +110,27 @@ class DatabaseInstance extends RocketService {
             data: gpioPayload,
           };
           this.queueStateIO.add(data);
+        } else if (code === CODE_EVENT_SYNC_GPIO) {
+          const gpioInfo: NotifyIoPayload = JSON.parse(payload.data);
+          /* check is array */
+          if (
+            typeof gpioInfo.input !== 'object' ||
+            typeof gpioInfo.output !== 'object'
+          ) {
+            logger.error('input & output must be array');
+            return;
+          }
+
+          const data: InfoIo = {
+            userId,
+            deviceId,
+            mac,
+            data: {
+              input: gpioInfo.input,
+              output: gpioInfo.output,
+            },
+          };
+          this.queueSyncIo.add(data);
         }
       } else {
         if (code === CODE_EVENT_UPDATE_STATE_DEVICE) {
@@ -137,7 +165,7 @@ class DatabaseInstance extends RocketService {
     done: msgQueue.DoneCallback
   ): Promise<void> {
     try {
-      const res: GpioState = await updateGpio(job.data);
+      const res: ResponseGpioState = await updateGpio(job.data);
       done(null, res); // done handle save data sensor
     } catch (error) {
       done(error as Error, null);
@@ -157,6 +185,19 @@ class DatabaseInstance extends RocketService {
     }
   }
 
+  private async handleSyncIo(
+    job: msgQueue.Job<InfoIo>,
+    done: msgQueue.DoneCallback
+  ): Promise<void> {
+    /* handler job */
+    try {
+      const res: ResponseInfoIo = await createGpio(job.data);
+      done(null, res); // done handle save state device
+    } catch (error) {
+      done(error as Error, null);
+    }
+  }
+
   private onHandleUpdateStateDeviceCompleted(
     job: msgQueue.Job<InfoStateDevice>,
     result: DataStateDevice
@@ -165,6 +206,25 @@ class DatabaseInstance extends RocketService {
       service: 'db-service',
       action: 'NOTIFY',
       code: CODE_EVENT_UPDATE_STATE_DEVICE,
+      payload: {
+        mac: job.data.mac,
+        userId: job.data.userId,
+        deviceId: job.data.deviceId,
+        data: result,
+      },
+    };
+
+    this.sendMessage('socket-io-service', data);
+  }
+
+  private onHandleSyncIoCompleted(
+    job: msgQueue.Job<InfoIo>,
+    result: ResponseInfoIo
+  ): void {
+    const data: DataRocketDynamic<DataSocket> = {
+      service: 'db-service',
+      action: 'NOTIFY',
+      code: CODE_EVENT_SYNC_GPIO,
       payload: {
         mac: job.data.mac,
         userId: job.data.userId,
@@ -197,7 +257,7 @@ class DatabaseInstance extends RocketService {
 
   private onHandleUpdateIoCompleted(
     job: msgQueue.Job<IoState>,
-    result: GpioState
+    result: ResponseGpioState
   ): void {
     const data: DataRocketDynamic<DataSocket> = {
       service: 'db-service',
@@ -248,6 +308,8 @@ class DatabaseInstance extends RocketService {
       'completed',
       this.onHandleUpdateStateDeviceCompleted.bind(this)
     );
+    this.queueSyncIo.process(this.handleSyncIo.bind(this));
+    this.queueSyncIo.on('completed', this.onHandleSyncIoCompleted.bind(this));
 
     mongoose
       .connect(`mongodb://localhost:${this.port}/fire-alarm`)
@@ -264,6 +326,7 @@ class DatabaseInstance extends RocketService {
   queueSensor: msgQueue.Queue<InfoSensor>;
   queueStateIO: msgQueue.Queue<IoState>;
   queueStateDevice: msgQueue.Queue<InfoStateDevice>;
+  queueSyncIo: msgQueue.Queue<InfoIo>;
 }
 
 export default new DatabaseInstance(

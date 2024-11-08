@@ -17,7 +17,10 @@ import {
   CODE_EVENT_UPDATE_STATE_DEVICE,
   CODE_EVENT_UPDATE_OUTPUT,
   CODE_EVENT_UPDATE_INPUT,
+  CODE_EVENT_SYNC_THRESHOLD,
+  CODE_EVENT_UNKNOWN,
 } from '../Constant';
+import { DataApi } from '../APIService';
 import { DataSocket } from '../SocketIOService';
 import { RocketService } from '../ManageService';
 import {
@@ -50,6 +53,16 @@ interface LinkDeviceCache {
   [deviceId: string]: {
     ctx: Client;
   };
+}
+
+export interface NotifyPayload {
+  timestamp?: number;
+  _type?: string;
+}
+
+export interface NotifyIoPayload extends NotifyPayload {
+  input?: boolean[];
+  output?: boolean[];
 }
 
 class MqttInstance extends RocketService {
@@ -112,6 +125,36 @@ class MqttInstance extends RocketService {
 
       /* set data into database */
       this.sendMessage('db-service', data);
+    }
+  }
+
+  private handleNotify(clientId: string, payload: string): void {
+    try {
+      const userId = this.cacheInfoClient[clientId].userId;
+      const deviceId = this.cacheInfoClient[clientId].deviceId;
+      const mac = this.cacheInfoClient[clientId].mac;
+
+      const _payload: NotifyPayload = JSON.parse(payload);
+
+      if (userId && deviceId && mac) {
+        const data: DataRocketDynamic<DataMqtt> = {
+          service: 'mqtt-service',
+          action: 'SET',
+          code: _payload._type?.toUpperCase() ?? CODE_EVENT_UNKNOWN,
+          payload: {
+            mac,
+            userId,
+            deviceId,
+            topic: '/notify',
+            data: payload,
+          },
+        };
+
+        /* set data into database */
+        this.sendMessage('db-service', data);
+      }
+    } catch (error) {
+      logger.error(error);
     }
   }
 
@@ -205,13 +248,31 @@ class MqttInstance extends RocketService {
     }
   }
 
+  private handleDataApi(
+    payload: DataApi,
+    action: ActionPayload,
+    code: string
+  ): void {
+    // const userId = payload.userId;
+    const deviceId = payload.deviceId;
+    // const mac = payload.mac;
+
+    if (action === 'CONFIG') {
+      if (code === CODE_EVENT_SYNC_THRESHOLD) {
+        this.sendPayload(deviceId, '/config', JSON.stringify(payload.data));
+      }
+    }
+  }
+
   override onReceiveMessage(payload: string): void {
-    logger.info(`Received payload: ${payload}`);
+    // logger.info(`Received payload: ${payload}`);
 
     const pay: DataRocketDynamic = JSON.parse(payload);
 
     if (pay.service === 'socket-io-service') {
       this.handleDataSocketIo(pay.payload as DataSocket, pay.action, pay.code);
+    } else if (pay.service === 'api-service') {
+      this.handleDataApi(pay.payload as DataApi, pay.action, pay.code);
     }
   }
 
@@ -244,14 +305,21 @@ class MqttInstance extends RocketService {
         return;
       }
 
+      if (packet.payload.length < 0) {
+        logger.error('Payload is empty');
+        return;
+      }
+
       if (packet.topic === '/sensor') {
         this.handleSensor(client.id, packet.payload.toString());
-      } else if (packet.topic === '/output') {
+      } else if (packet.topic === '/output-io') {
         this.handleIoOutput(client.id, packet.payload.toString());
-      } else if (packet.topic === '/input') {
+      } else if (packet.topic === '/input-io') {
         this.handleIoInput(client.id, packet.payload.toString());
       } else if (packet.topic === '/active') {
         this.handleDeviceActive(client.id, packet.payload.toString());
+      } else if (packet.topic === '/notify') {
+        this.handleNotify(client.id, packet.payload.toString());
       }
     }
   }
@@ -271,12 +339,19 @@ class MqttInstance extends RocketService {
       username,
       ' - password: ',
       decodePassword
-    ); */
+      ); */
 
     /* get device in database */
     const device = await DeviceMD.findOne({
       auth: { username: username, password: decodePassword },
     });
+
+    logger.info(
+      'Client authenticated => ',
+      client.id,
+      ' - deviceId: ',
+      device?._id.toString(),
+    );
 
     if (device == null) {
       done(
@@ -304,6 +379,13 @@ class MqttInstance extends RocketService {
   }
 
   sendPayload(id: string, topic: string, msg: string) {
+    console.log(
+      'Send to device: ',
+      id,
+      'clienId: ',
+      this.getClientByDeviceId(id)?.id
+    );
+
     const _ctx: Client | undefined = this.getClientByDeviceId(id);
     if (_ctx) {
       console.log(
@@ -324,7 +406,11 @@ class MqttInstance extends RocketService {
           retain: false,
           qos: 1,
         },
-        (err) => {}
+        (err) => {
+          if (err) {
+            logger.error('Publish error: ', err);
+          }
+        }
       );
     }
   }

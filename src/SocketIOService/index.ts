@@ -11,6 +11,8 @@ import {
   CODE_EVENT_UPDATE_SENSOR,
   CODE_EVENT_UPDATE_STATE_DEVICE,
   CODE_EVENT_UPDATE_OUTPUT,
+  CODE_EVENT_UPDATE_INPUT,
+  CODE_EVENT_SYNC_GPIO,
 } from '../Constant';
 import { UserMD } from '../DatabaseService/models/account';
 import { DeviceMD } from '../DatabaseService/models/devices';
@@ -32,8 +34,15 @@ export interface DataSocket {
 interface InfoClientSocketCache {
   [clientId: string]: {
     userId: string;
-    devices: string[];
+    devices: {
+      id: string;
+      mac: string;
+    }[];
   };
+}
+
+interface InfoDeviceLinkClient {
+  [deviceId: string]: string[];
 }
 
 interface PayloadDecodeRuntimeToken extends JwtPayload {
@@ -50,7 +59,8 @@ interface BasePayload<T> {
 class SocketIOInstance extends RocketService {
   constructor(port: number) {
     super(SOCKET_IO_SERVICE_NAME);
-    this.cacheInfoUser = {};
+    this.cacheClientLinkDevice = {};
+    this.cacheDeviceLinkClient = {};
     this.port = port;
     // this.server = createServer();
     this.io = new SocketIOServer({ cors: { origin: '*' } });
@@ -63,10 +73,12 @@ class SocketIOInstance extends RocketService {
   ): void {
     const userId = payload.userId;
 
-    if (code === CODE_EVENT_ACTIVE_DEVICE && action == 'NOTIFY') {
-      /* [PATH: '{userId}/device/active'] */
-      if (payload.topic === '/active') {
-        this.io.emit(`${userId}/device/active`, JSON.parse(payload.data));
+    if (action == 'NOTIFY') {
+      if (code === CODE_EVENT_ACTIVE_DEVICE) {
+        /* [PATH: '{userId}/device/active'] */
+        if (payload.topic === '/active') {
+          this.io.emit(`${userId}/device/active`, JSON.parse(payload.data));
+        }
       }
     }
   }
@@ -79,18 +91,40 @@ class SocketIOInstance extends RocketService {
     const userId = payload.userId;
     const deviceId = payload.deviceId;
 
-    if (code === CODE_EVENT_UPDATE_SENSOR && action == 'NOTIFY') {
-      /* [PATH: '{userId}/{deviceId}/sensor'] */
-      this.io.emit(`${userId}/${deviceId}/sensor`, payload.data);
-    } else if (code === CODE_EVENT_UPDATE_STATE_DEVICE && action == 'NOTIFY') {
-      /* [PATH: '{userId}/{deviceId}/state'] */
-      this.io.emit(`${userId}/${deviceId}/status`, payload.data);
+    if (action == 'NOTIFY') {
+      if (code === CODE_EVENT_UPDATE_SENSOR) {
+        /* [PATH: '{userId}/{deviceId}/sensor'] */
+        this.io.emit(`${userId}/${deviceId}/sensor`, payload.data);
+      } else if (code === CODE_EVENT_UPDATE_STATE_DEVICE) {
+        /* [PATH: '{userId}/{deviceId}/status'] */
+        this.io.emit(`${userId}/${deviceId}/status`, payload.data);
+      } else if (code === CODE_EVENT_UPDATE_OUTPUT) {
+        this.deviceBoardcastMsg(deviceId, 'device/output-io', payload.data);
+        // this.io.emit(`${userId}/device/output-io`, payload.data);
+      } else if (code === CODE_EVENT_UPDATE_INPUT) {
+        this.io.emit(`${userId}/device/input-io`, payload.data);
+      } else if (code === CODE_EVENT_SYNC_GPIO) {
+        this.io.emit(`${userId}/device/sync-io`, payload.data);
+      }
     }
+  }
+
+  private deviceBoardcastMsg(
+    deviceId: string,
+    eventName: string,
+    msg: string
+  ): void {
+    this.cacheDeviceLinkClient[deviceId].forEach((sockId) => {
+      const _sock = this.io.sockets.sockets.get(sockId);
+      if (_sock) {
+        _sock.emit(eventName, msg);
+      }
+    });
   }
 
   override onReceiveMessage(payload: string): void {
     const pay: DataRocketDynamic = JSON.parse(payload);
-    logger.info(`received message form ${pay.service}`);
+    logger.info(`received message form ${pay.service} => ${payload.length}`);
 
     if (pay.service === 'mqtt-service') {
       this.handleDataMqtt(pay.payload as DataMqtt, pay.action, pay.code);
@@ -107,7 +141,8 @@ class SocketIOInstance extends RocketService {
     logger.info('Client disconnected => ', socket.id, 'reason: ', reason);
 
     /* remove client when disconnect */
-    delete this.cacheInfoUser[socket.id];
+    this.removeCacheBySocketId(socket.id);
+    // delete this.cacheClientLinkDevice[socket.id];
   }
 
   onControl(socket: Socket, data: BasePayload<GpioState>): void {
@@ -126,6 +161,20 @@ class SocketIOInstance extends RocketService {
     };
 
     this.sendMessage('mqtt-service', _data);
+  }
+
+  removeCacheBySocketId(socketId: string): void {
+    /* get list device Id in cache */
+    const deviceIds: string[] = this.cacheClientLinkDevice[
+      socketId
+    ].devices.map((_) => _.id);
+
+    for (const deviceId of deviceIds) {
+      this.cacheDeviceLinkClient[deviceId] = this.cacheDeviceLinkClient[
+        deviceId
+      ].filter((_) => _ !== socketId);
+    }
+    delete this.cacheClientLinkDevice[socketId];
   }
 
   validateBasePayload(payload: BasePayload<GpioState>): boolean {
@@ -179,21 +228,39 @@ class SocketIOInstance extends RocketService {
           );
         }
 
-        DeviceMD.find({
+        const _devices = await DeviceMD.find({
           by_user: user._id,
           state: 'active',
         })
           .select('_id')
-          .exec()
-          .then((_devices) => {
-            this.cacheInfoUser[socket.id] = {
-              userId: user._id.toString(),
-              devices: _devices.map((d) => d._id.toString()),
+          .exec();
+
+        logger.info(
+          'Client authenticated => ',
+          socket.id,
+          ' - userId: ',
+          user._id.toString(),
+          ' - devices: ',
+          _devices.length
+        );
+
+        this.cacheClientLinkDevice[socket.id] = {
+          userId: user._id.toString(),
+          devices: _devices.map((d) => {
+            if (
+              typeof this.cacheDeviceLinkClient[d._id.toString()] ===
+              'undefined'
+            ) {
+              this.cacheDeviceLinkClient[d._id.toString()] = [socket.id];
+            } else {
+              this.cacheDeviceLinkClient[d._id.toString()].push(socket.id);
+            }
+            return {
+              id: d._id.toString(),
+              mac: d.mac,
             };
-          })
-          .catch((err) => {
-            logger.error(err);
-          });
+          }),
+        };
       }
 
       return next();
@@ -208,7 +275,7 @@ class SocketIOInstance extends RocketService {
 
   async start() {
     // logger.info('Starting SocketIO instance');
-    // this.io.use(this.validateAuthentication.bind(this));
+    this.io.use(this.validateAuthentication.bind(this));
     this.io.on('connection', this.onConnection.bind(this));
 
     /* start listen socket-io on port */
@@ -225,7 +292,8 @@ class SocketIOInstance extends RocketService {
   port: number;
   //   server: Server;
   io: SocketIOServer;
-  cacheInfoUser: InfoClientSocketCache;
+  cacheClientLinkDevice: InfoClientSocketCache;
+  cacheDeviceLinkClient: InfoDeviceLinkClient;
 }
 
 export default new SocketIOInstance(

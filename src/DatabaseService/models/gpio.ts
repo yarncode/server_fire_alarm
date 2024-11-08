@@ -12,8 +12,13 @@ export interface DataInfoIO {
   output: number;
 }
 
+export interface DataStateInfoIO {
+  input: boolean[];
+  output: boolean[];
+}
+
 export interface GpioState {
-  value: boolean;
+  state: boolean;
   type: GpioType;
   pos?: number;
   ack?: string;

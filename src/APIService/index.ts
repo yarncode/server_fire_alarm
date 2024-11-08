@@ -8,6 +8,13 @@ import morgan from 'morgan';
 import { RocketService } from '../ManageService';
 import routerSetup from './router/center';
 
+export interface DataApi {
+  mac: string;
+  userId: string;
+  deviceId: string;
+  data: any;
+}
+
 const logger = Logger.getLogger({ name: 'API' });
 
 export const API_SERVICE_NAME = 'api-service';
@@ -29,6 +36,7 @@ class APIInstance extends RocketService {
 
   start(): void {
     /* setup body parser */
+    this.app.locals['_ctx'] = this;
     this.app.use(express.urlencoded({ extended: true }));
     this.app.use(express.json());
     this.app.use(morgan('dev'));

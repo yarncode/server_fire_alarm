@@ -14,6 +14,12 @@ router.get(
   Device.device_info
 );
 router.get(
+  '/io',
+  account_auth.validate_token,
+  device_auth.validate_owner,
+  Device.io_info
+);
+router.get(
   '/setting',
   account_auth.validate_token,
   device_auth.validate_owner,

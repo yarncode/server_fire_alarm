@@ -27,7 +27,7 @@ const DeviceLogger = new Schema(
 );
 
 const DeviceSetting = new Schema({
-  deviceId: { type: Schema.Types.ObjectId, required: true },
+  by_device: { type: Schema.Types.ObjectId, required: true },
   threshold: {
     type: Schema.Types.Mixed,
     required: true,

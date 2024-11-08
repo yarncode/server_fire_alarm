@@ -58,7 +58,9 @@ export const main_auth = {
         } as DeviceResponse);
       }
 
-      req.body['user_id'] = user._id;
+      req.body['_user_id'] = user._id;
+      req.body['_mac'] = device.mac;
+      req.body['_device_id'] = device._id;
 
       next();
       return;
