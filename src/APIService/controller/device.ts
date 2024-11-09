@@ -185,9 +185,34 @@ class Device {
   async save_device_setting(req: Request, res: Response): Promise<any> {
     try {
       const {
+        name,
+        desc,
         threshold: { temperature, humidity, smoke },
       } = req.body;
       const { id } = req.query;
+
+      let fix_device = false;
+      const device = await DeviceMD.findOne({ _id: id });
+
+      if (device === null) {
+        return res
+          .status(400)
+          .json({ code: '107001', message: DEVICE_MESSAGE['107001'] });
+      }
+
+      if (name) {
+        device.$set('name', name);
+        fix_device = true;
+      }
+
+      if (desc) {
+        device.$set('desc', desc);
+        fix_device = true;
+      }
+
+      if (fix_device) {
+        await device.save();
+      }
 
       /* find setting */
       const _setting = await DeviceSettingMD.findOne({ by_device: id });
