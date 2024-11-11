@@ -287,7 +287,7 @@ class MqttInstance extends RocketService {
 
     /* remove client when disconnect */
     this.handleStateDevice(client.id, 'OFFLINE');
-    this.removeCacheByClientId(client.id);
+    // this.removeCacheByClientId(client.id);
   }
 
   onPing(packet: PingreqPacket, client: Client): void {

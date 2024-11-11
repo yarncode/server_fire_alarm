@@ -99,12 +99,26 @@ class SocketIOInstance extends RocketService {
         /* [PATH: '{userId}/{deviceId}/status'] */
         this.io.emit(`${userId}/${deviceId}/status`, payload.data);
       } else if (code === CODE_EVENT_UPDATE_OUTPUT) {
-        this.deviceBoardcastMsg(deviceId, 'device/output-io', payload.data);
+        this.deviceBoardcastMsg(
+          deviceId,
+          `device/${deviceId}/output-io`,
+          payload.data
+        );
         // this.io.emit(`${userId}/device/output-io`, payload.data);
       } else if (code === CODE_EVENT_UPDATE_INPUT) {
-        this.io.emit(`${userId}/device/input-io`, payload.data);
+        this.deviceBoardcastMsg(
+          deviceId,
+          `device/${deviceId}/input-io`,
+          payload.data
+        );
+        // this.io.emit(`${userId}/device/input-io`, payload.data);
       } else if (code === CODE_EVENT_SYNC_GPIO) {
-        this.io.emit(`${userId}/device/sync-io`, payload.data);
+        this.deviceBoardcastMsg(
+          deviceId,
+          `device/${deviceId}/sync-io`,
+          payload.data
+        );
+        // this.io.emit(`${userId}/device/sync-io`, payload.data);
       }
     }
   }
@@ -114,12 +128,14 @@ class SocketIOInstance extends RocketService {
     eventName: string,
     msg: string
   ): void {
-    this.cacheDeviceLinkClient[deviceId].forEach((sockId) => {
-      const _sock = this.io.sockets.sockets.get(sockId);
-      if (_sock) {
-        _sock.emit(eventName, msg);
-      }
-    });
+    if (this.cacheDeviceLinkClient[deviceId]) {
+      this.cacheDeviceLinkClient[deviceId].forEach((sockId) => {
+        const _sock = this.io.sockets.sockets.get(sockId);
+        if (_sock) {
+          _sock.emit(eventName, msg);
+        }
+      });
+    }
   }
 
   override onReceiveMessage(payload: string): void {
@@ -178,7 +194,7 @@ class SocketIOInstance extends RocketService {
   }
 
   validateBasePayload(payload: BasePayload<GpioState>): boolean {
-    return payload?.mac && payload?.userId && payload?.deviceId ? true : false;
+    return payload?.deviceId ? true : false;
   }
 
   onConnection(socket: Socket): void {
