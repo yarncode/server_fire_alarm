@@ -22,9 +22,9 @@ jobs:
           password: ${{ secrets.SERVER_PASS }}
           port: ${{ secrets.SERVER_PORT }} 
           script: |
-            cd /miru/server_fire_alarm
+            cd /home/miru/server_fire_alarm
             git fetch origin
-            git checkout master
+            git checkout production
             git pull
             yarn build
-            pm2 reload server_fire_alarm
+            pm2 reload fire_alarm_server
