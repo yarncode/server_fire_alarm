@@ -22,4 +22,3 @@ jobs:
             git checkout master
             git pull
             yarn build
-            pm2 reload server_fire_alarm
