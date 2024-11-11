@@ -117,7 +117,7 @@ class DatabaseInstance extends RocketService {
             typeof gpioInfo.input !== 'object' ||
             typeof gpioInfo.output !== 'object'
           ) {
-            logger.error('input & output must be array');
+            logger.error('input & output must be array.');
             return;
           }
 
