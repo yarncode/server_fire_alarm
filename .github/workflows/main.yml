@@ -10,6 +10,14 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup SSH Key
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+      
       - name: Login VPS
         uses: appleboy/ssh-action@master
         with:
@@ -17,18 +25,12 @@ jobs:
             username: ${{ secrets.SERVER_USERNAME }}
             password: ${{ secrets.SERVER_PASS }}
             port: ${{ secrets.SERVER_PORT }}
-              
-      - name: Checkout the current repository
-        uses: actions/checkout@v4
-
-      - name: Setup SSH for GitHub repo
-        uses: webfactory/ssh-agent@v0.9.0
-        with:
-          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
-          script: |
-            cd /home/miru/server_fire_alarm
-            git fetch origin
-            git checkout production
-            git pull
-            yarn build
-            pm2 reload fire_alarm_server
+            ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+            script: |
+              cd /home/miru/server_fire_alarm
+              git fetch origin
+              git checkout production
+              git pull
+              yarn build
+              pm2 reload fire_alarm_server
+          
