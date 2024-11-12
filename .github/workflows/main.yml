@@ -18,6 +18,7 @@ jobs:
             password: ${{ secrets.SERVER_PASS }}
             port: ${{ secrets.SERVER_PORT }}
             key: ${{ secrets.SSH_PRIVATE_KEY }}
+            passphrase: ${{ secrets.SSH_PRIVATE_KEY_PASS }}
             script: |
               cd /home/miru/server_fire_alarm
               git fetch origin
