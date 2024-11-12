@@ -23,4 +23,7 @@ jobs:
             script: |
               whoami 
               ls -a
+              ls ~/.ssh
+              cd /home/miru/server_fire_alarm
+              ls -a
           
