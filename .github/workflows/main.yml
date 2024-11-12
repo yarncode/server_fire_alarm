@@ -21,4 +21,8 @@ jobs:
             script: |
               cd /home/miru/server_fire_alarm
               git pull
+              npm i -g yarn
+              yarn add
+              yarn build
+              pm2 reload
           
