@@ -20,10 +20,7 @@ jobs:
             key: ${{ secrets.SSH_PRIVATE_KEY }}
             script_stop: true
             script: |
-              whoami 
-              ls -a
-              ls ~/.ssh
-              cd /home/miru/server_fire_alarm
-              ls -a
+              eval `ssh-agent -s`
+              ssh-add ~/.ssh/git_id_rsa
               git pull
           
