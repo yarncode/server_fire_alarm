@@ -17,7 +17,6 @@ jobs:
             username: ${{ secrets.SERVER_USERNAME }}
             password: ${{ secrets.SERVER_PASS }}
             port: ${{ secrets.SERVER_PORT }}
-            script_stop: true
             script: |
               cd /home/miru/server_fire_alarm
               git pull
