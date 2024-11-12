@@ -1,1 +1,1 @@
-{"version":3,"file":"middleware.js","sourceRoot":"","sources":["../../src/SocketIOService/middleware.ts"],"names":[],"mappings":";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;AASa,QAAA,SAAS,GAAG;IACvB,cAAc,EAAE,UAAO,MAAc,EAAE,IAA2B;;;;SAGjE;CACF,CAAC"}
+{"version":3,"file":"middleware.js","sourceRoot":"","sources":["../../src/SocketIOService/middleware.ts"],"names":[],"mappings":";;;;;;;;;;;;AASa,QAAA,SAAS,GAAG;IACvB,cAAc,EAAE,CAAO,MAAc,EAAE,IAA2B,EAAE,EAAE;QACpE,0EAA0E;IAE5E,CAAC,CAAA;CACF,CAAC"}

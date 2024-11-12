@@ -24,22 +24,22 @@ var __importStar = (this && this.__importStar) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.DeviceLoggerMD = exports.DeviceSettingMD = exports.DeviceMD = exports.LoggerTypeList = exports.NodeTypeList = exports.MODEL_DEVICE_LOGGER_NAME = exports.MODEL_DEVICE_SETTING_NAME = exports.MODEL_DEVICE_NAME = void 0;
-var mongoose_1 = __importStar(require("mongoose"));
+const mongoose_1 = __importStar(require("mongoose"));
 /* my import */
-var account_1 = require("./account");
+const account_1 = require("./account");
 exports.MODEL_DEVICE_NAME = 'Device';
 exports.MODEL_DEVICE_SETTING_NAME = 'DeviceSetting';
 exports.MODEL_DEVICE_LOGGER_NAME = 'DeviceLogger';
 exports.NodeTypeList = ['GATEWAY', 'NODE', 'UNKNOWN'];
 exports.LoggerTypeList = ['CROSS_THRESHOLD', 'UNKNOWN'];
-var DeviceLogger = new mongoose_1.Schema({
+const DeviceLogger = new mongoose_1.Schema({
     deviceId: { type: mongoose_1.Schema.Types.ObjectId, required: true },
     type: { type: mongoose_1.Schema.Types.String, enum: exports.LoggerTypeList, required: true },
     raw: { type: mongoose_1.Schema.Types.Mixed },
     message: { type: mongoose_1.Schema.Types.String, required: true },
 }, { timestamps: true });
-var DeviceSetting = new mongoose_1.Schema({
-    deviceId: { type: mongoose_1.Schema.Types.ObjectId, required: true },
+const DeviceSetting = new mongoose_1.Schema({
+    by_device: { type: mongoose_1.Schema.Types.ObjectId, required: true },
     threshold: {
         type: mongoose_1.Schema.Types.Mixed,
         required: true,
@@ -57,7 +57,7 @@ var DeviceSetting = new mongoose_1.Schema({
         },
     },
 });
-var Device = new mongoose_1.Schema({
+const Device = new mongoose_1.Schema({
     by_user: {
         ref: account_1.MODEL_USER_NAME,
         type: mongoose_1.Schema.Types.ObjectId,
@@ -88,10 +88,10 @@ var Device = new mongoose_1.Schema({
         require: true,
     },
 }, { timestamps: true });
-var DeviceMD = mongoose_1.default.model(exports.MODEL_DEVICE_NAME, Device);
+const DeviceMD = mongoose_1.default.model(exports.MODEL_DEVICE_NAME, Device);
 exports.DeviceMD = DeviceMD;
-var DeviceSettingMD = mongoose_1.default.model(exports.MODEL_DEVICE_SETTING_NAME, DeviceSetting);
+const DeviceSettingMD = mongoose_1.default.model(exports.MODEL_DEVICE_SETTING_NAME, DeviceSetting);
 exports.DeviceSettingMD = DeviceSettingMD;
-var DeviceLoggerMD = mongoose_1.default.model(exports.MODEL_DEVICE_LOGGER_NAME, DeviceLogger);
+const DeviceLoggerMD = mongoose_1.default.model(exports.MODEL_DEVICE_LOGGER_NAME, DeviceLogger);
 exports.DeviceLoggerMD = DeviceLoggerMD;
 //# sourceMappingURL=devices.js.map

@@ -23,23 +23,23 @@ var __importStar = (this && this.__importStar) || function (mod) {
     return result;
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.SensorMD = exports.MODEL_SENSOR_PAYLOAD_NAME = exports.MODEL_SENSOR_NAME = void 0;
+exports.IoMD = exports.MODEL_IO_PAYLOAD_NAME = exports.MODEL_IO_NAME = void 0;
 const mongoose_1 = __importStar(require("mongoose"));
 /* my import */
 const devices_1 = require("./devices");
-exports.MODEL_SENSOR_NAME = 'Sensor';
-exports.MODEL_SENSOR_PAYLOAD_NAME = 'SensorPayload';
-const Sensor = new mongoose_1.Schema({
+exports.MODEL_IO_NAME = 'IO';
+exports.MODEL_IO_PAYLOAD_NAME = 'IOPayload';
+const Gpio = new mongoose_1.Schema({
     by_device: { ref: devices_1.MODEL_DEVICE_NAME, type: mongoose_1.Schema.Types.ObjectId },
-    smoke: [{ value: mongoose_1.Schema.Types.Number, update_at: mongoose_1.Schema.Types.Date }],
-    env: {
-        humidity: [{ value: mongoose_1.Schema.Types.Number, update_at: mongoose_1.Schema.Types.Date }],
-        temperature: [
-            { value: mongoose_1.Schema.Types.Number, update_at: mongoose_1.Schema.Types.Date },
-        ],
+    input: {
+        type: [{ value: mongoose_1.Schema.Types.Boolean, update_at: mongoose_1.Schema.Types.Date }],
+        required: true,
     },
-    gas: [{ value: mongoose_1.Schema.Types.Number, update_at: mongoose_1.Schema.Types.Date }],
+    output: {
+        type: [{ value: mongoose_1.Schema.Types.Boolean, update_at: mongoose_1.Schema.Types.Date }],
+        required: true,
+    },
 }, { timestamps: true });
-const SensorMD = mongoose_1.default.model(exports.MODEL_SENSOR_NAME, Sensor);
-exports.SensorMD = SensorMD;
-//# sourceMappingURL=sensor.js.map
+const IoMD = mongoose_1.default.model(exports.MODEL_IO_PAYLOAD_NAME, Gpio);
+exports.IoMD = IoMD;
+//# sourceMappingURL=gpio.js.map

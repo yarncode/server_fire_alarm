@@ -1,19 +1,4 @@
 "use strict";
-var __extends = (this && this.__extends) || (function () {
-    var extendStatics = function (d, b) {
-        extendStatics = Object.setPrototypeOf ||
-            ({ __proto__: [] } instanceof Array && function (d, b) { d.__proto__ = b; }) ||
-            function (d, b) { for (var p in b) if (Object.prototype.hasOwnProperty.call(b, p)) d[p] = b[p]; };
-        return extendStatics(d, b);
-    };
-    return function (d, b) {
-        if (typeof b !== "function" && b !== null)
-            throw new TypeError("Class extends value " + String(b) + " is not a constructor or null");
-        extendStatics(d, b);
-        function __() { this.constructor = d; }
-        d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
-    };
-})();
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
     function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
     return new (P || (P = Promise))(function (resolve, reject) {
@@ -23,94 +8,66 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
-var __generator = (this && this.__generator) || function (thisArg, body) {
-    var _ = { label: 0, sent: function() { if (t[0] & 1) throw t[1]; return t[1]; }, trys: [], ops: [] }, f, y, t, g;
-    return g = { next: verb(0), "throw": verb(1), "return": verb(2) }, typeof Symbol === "function" && (g[Symbol.iterator] = function() { return this; }), g;
-    function verb(n) { return function (v) { return step([n, v]); }; }
-    function step(op) {
-        if (f) throw new TypeError("Generator is already executing.");
-        while (g && (g = 0, op[0] && (_ = 0)), _) try {
-            if (f = 1, y && (t = op[0] & 2 ? y["return"] : op[0] ? y["throw"] || ((t = y["return"]) && t.call(y), 0) : y.next) && !(t = t.call(y, op[1])).done) return t;
-            if (y = 0, t) op = [op[0] & 2, t.value];
-            switch (op[0]) {
-                case 0: case 1: t = op; break;
-                case 4: _.label++; return { value: op[1], done: false };
-                case 5: _.label++; y = op[1]; op = [0]; continue;
-                case 7: op = _.ops.pop(); _.trys.pop(); continue;
-                default:
-                    if (!(t = _.trys, t = t.length > 0 && t[t.length - 1]) && (op[0] === 6 || op[0] === 2)) { _ = 0; continue; }
-                    if (op[0] === 3 && (!t || (op[1] > t[0] && op[1] < t[3]))) { _.label = op[1]; break; }
-                    if (op[0] === 6 && _.label < t[1]) { _.label = t[1]; t = op; break; }
-                    if (t && _.label < t[2]) { _.label = t[2]; _.ops.push(op); break; }
-                    if (t[2]) _.ops.pop();
-                    _.trys.pop(); continue;
-            }
-            op = body.call(thisArg, _);
-        } catch (e) { op = [6, e]; y = 0; } finally { f = t = 0; }
-        if (op[0] & 5) throw op[1]; return { value: op[0] ? op[1] : void 0, done: true };
-    }
-};
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.MQTT_SERVICE_NAME = void 0;
 /* node_module import */
-var sitka_1 = require("sitka");
-var net_1 = __importDefault(require("net"));
-var aedes_1 = __importDefault(require("aedes"));
-var Constant_1 = require("../Constant");
-var ManageService_1 = require("../ManageService");
-var devices_1 = require("../DatabaseService/models/devices");
-var logger = sitka_1.Logger.getLogger({ name: 'MQTT' });
+const sitka_1 = require("sitka");
+const net_1 = __importDefault(require("net"));
+const aedes_1 = __importDefault(require("aedes"));
+const Constant_1 = require("../Constant");
+const ManageService_1 = require("../ManageService");
+const devices_1 = require("../DatabaseService/models/devices");
+const logger = sitka_1.Logger.getLogger({ name: 'MQTT' });
 exports.MQTT_SERVICE_NAME = 'mqtt-service';
-var MqttInstance = /** @class */ (function (_super) {
-    __extends(MqttInstance, _super);
-    function MqttInstance(port) {
-        var _this = _super.call(this, exports.MQTT_SERVICE_NAME) || this;
-        _this.cacheInfoDevice = {};
-        _this.port = port;
-        _this.aedes = new aedes_1.default();
-        _this.server = net_1.default.createServer(_this.aedes.handle);
-        return _this;
+class MqttInstance extends ManageService_1.RocketService {
+    constructor(port) {
+        super(exports.MQTT_SERVICE_NAME);
+        this.cacheInfoClient = {};
+        this.cacheLinkDevice = {};
+        this.port = port;
+        this.aedes = new aedes_1.default();
+        this.server = net_1.default.createServer(this.aedes.handle);
     }
-    MqttInstance.prototype.handleDeviceActive = function (clientId, payload) {
-        var userId = this.cacheInfoDevice[clientId].userId;
-        var deviceId = this.cacheInfoDevice[clientId].deviceId;
-        var mac = this.cacheInfoDevice[clientId].mac;
+    handleDeviceActive(clientId, payload) {
+        const userId = this.cacheInfoClient[clientId].userId;
+        const deviceId = this.cacheInfoClient[clientId].deviceId;
+        const mac = this.cacheInfoClient[clientId].mac;
         if (userId && deviceId && mac) {
             /* push message to user client */
             // logger.info(`Pushing to user: ${userId} - payload: ${payload}`);
-            var data = {
+            const data = {
                 service: 'mqtt-service',
                 action: 'NOTIFY',
                 code: Constant_1.CODE_EVENT_ACTIVE_DEVICE,
                 payload: {
-                    mac: mac,
-                    userId: userId,
-                    deviceId: deviceId,
+                    mac,
+                    userId,
+                    deviceId,
                     topic: '/active',
                     data: payload,
                 },
             };
             this.sendMessage('socket-io-service', data);
         }
-    };
-    MqttInstance.prototype.handleSensor = function (clientId, payload) {
-        var userId = this.cacheInfoDevice[clientId].userId;
-        var deviceId = this.cacheInfoDevice[clientId].deviceId;
-        var mac = this.cacheInfoDevice[clientId].mac;
+    }
+    handleSensor(clientId, payload) {
+        const userId = this.cacheInfoClient[clientId].userId;
+        const deviceId = this.cacheInfoClient[clientId].deviceId;
+        const mac = this.cacheInfoClient[clientId].mac;
         if (userId && deviceId && mac) {
             /* push message to user client */
             // logger.info(`Pushing to user: ${userId} - payload: ${payload}`);
-            var data = {
+            const data = {
                 service: 'mqtt-service',
                 action: 'SET',
                 code: Constant_1.CODE_EVENT_UPDATE_SENSOR,
                 payload: {
-                    mac: mac,
-                    userId: userId,
-                    deviceId: deviceId,
+                    mac,
+                    userId,
+                    deviceId,
                     topic: '/sensor',
                     data: payload,
                 },
@@ -118,120 +75,282 @@ var MqttInstance = /** @class */ (function (_super) {
             /* set data into database */
             this.sendMessage('db-service', data);
         }
-    };
-    MqttInstance.prototype.handleStateDevice = function (clientId, status) {
-        var data = {
+    }
+    handleNotify(clientId, payload) {
+        var _a, _b;
+        try {
+            const userId = this.cacheInfoClient[clientId].userId;
+            const deviceId = this.cacheInfoClient[clientId].deviceId;
+            const mac = this.cacheInfoClient[clientId].mac;
+            const _payload = JSON.parse(payload);
+            if (userId && deviceId && mac) {
+                const data = {
+                    service: 'mqtt-service',
+                    action: 'SET',
+                    code: (_b = (_a = _payload._type) === null || _a === void 0 ? void 0 : _a.toUpperCase()) !== null && _b !== void 0 ? _b : Constant_1.CODE_EVENT_UNKNOWN,
+                    payload: {
+                        mac,
+                        userId,
+                        deviceId,
+                        topic: '/notify',
+                        data: payload,
+                    },
+                };
+                /* set data into database */
+                this.sendMessage('db-service', data);
+            }
+        }
+        catch (error) {
+            logger.error(error);
+        }
+    }
+    handleIoOutput(clientId, payload) {
+        const userId = this.cacheInfoClient[clientId].userId;
+        const deviceId = this.cacheInfoClient[clientId].deviceId;
+        const mac = this.cacheInfoClient[clientId].mac;
+        if (userId && deviceId && mac) {
+            /* push message to user client */
+            // logger.info(`Pushing to user: ${userId} - payload: ${payload}`);
+            const data = {
+                service: 'mqtt-service',
+                action: 'SET',
+                code: Constant_1.CODE_EVENT_UPDATE_OUTPUT,
+                payload: {
+                    mac,
+                    userId,
+                    deviceId,
+                    topic: '/output',
+                    data: payload,
+                },
+            };
+            /* set data into database */
+            this.sendMessage('db-service', data);
+        }
+    }
+    handleIoInput(clientId, payload) {
+        const userId = this.cacheInfoClient[clientId].userId;
+        const deviceId = this.cacheInfoClient[clientId].deviceId;
+        const mac = this.cacheInfoClient[clientId].mac;
+        if (userId && deviceId && mac) {
+            /* push message to user client */
+            // logger.info(`Pushing to user: ${userId} - payload: ${payload}`);
+            const data = {
+                service: 'mqtt-service',
+                action: 'SET',
+                code: Constant_1.CODE_EVENT_UPDATE_INPUT,
+                payload: {
+                    mac,
+                    userId,
+                    deviceId,
+                    topic: '/input',
+                    data: payload,
+                },
+            };
+            /* set data into database */
+            this.sendMessage('db-service', data);
+        }
+    }
+    handleStateDevice(clientId, status) {
+        const data = {
             service: 'mqtt-service',
             action: 'SET',
             code: Constant_1.CODE_EVENT_UPDATE_STATE_DEVICE,
             payload: {
-                mac: this.cacheInfoDevice[clientId].mac,
-                userId: this.cacheInfoDevice[clientId].userId,
-                deviceId: this.cacheInfoDevice[clientId].deviceId,
+                mac: this.cacheInfoClient[clientId].mac,
+                userId: this.cacheInfoClient[clientId].userId,
+                deviceId: this.cacheInfoClient[clientId].deviceId,
                 topic: '/sensor',
                 data: {
-                    status: status,
+                    status,
                 },
             },
         };
         /* set data into database */
         this.sendMessage('db-service', data);
-    };
-    MqttInstance.prototype.onReceiveMessage = function (payload) {
-        logger.info("Received payload: ".concat(payload));
-    };
-    MqttInstance.prototype.onConnected = function (client) {
+    }
+    handleDataSocketIo(payload, action, code) {
+        // const userId = payload.userId;
+        const deviceId = payload.deviceId;
+        // const mac = payload.mac;
+        if (action === 'CONTROL') {
+            if (code === Constant_1.CODE_EVENT_UPDATE_OUTPUT) {
+                this.sendPayload(deviceId, '/control', JSON.stringify(payload.data));
+            }
+        }
+    }
+    handleDataApi(payload, action, code) {
+        // const userId = payload.userId;
+        const deviceId = payload.deviceId;
+        // const mac = payload.mac;
+        if (action === 'CONFIG') {
+            if (code === Constant_1.CODE_EVENT_SYNC_THRESHOLD) {
+                this.sendPayload(deviceId, '/config', JSON.stringify(payload.data));
+            }
+        }
+    }
+    onReceiveMessage(payload) {
+        // logger.info(`Received payload: ${payload}`);
+        const pay = JSON.parse(payload);
+        if (pay.service === 'socket-io-service') {
+            this.handleDataSocketIo(pay.payload, pay.action, pay.code);
+        }
+        else if (pay.service === 'api-service') {
+            this.handleDataApi(pay.payload, pay.action, pay.code);
+        }
+    }
+    onConnected(client) {
         logger.info('Client connected => ', client.id);
         this.handleStateDevice(client.id, 'ONLINE');
-    };
-    MqttInstance.prototype.onDisconnected = function (client) {
+    }
+    onDisconnected(client) {
         logger.info('Client disconnected => ', client.id);
         /* remove client when disconnect */
-        // delete this.cacheInfoDevice[client.id];
         this.handleStateDevice(client.id, 'OFFLINE');
-    };
-    MqttInstance.prototype.onPing = function (packet, client) {
-        logger.info("Client id: ".concat(client.id, " - Ping"));
-    };
-    MqttInstance.prototype.onPublished = function (packet, client) {
+        // this.removeCacheByClientId(client.id);
+    }
+    onPing(packet, client) {
+        logger.info(`Client id: ${client.id} - Ping`);
+    }
+    onPublished(packet, client) {
         if (client) {
-            logger.info("Client id: ".concat(client === null || client === void 0 ? void 0 : client.id, " - Published topic: ").concat(packet.topic, " length: ").concat(packet.payload.length));
+            logger.info(`Client id: ${client === null || client === void 0 ? void 0 : client.id} - Published topic: ${packet.topic} length: ${packet.payload.length}`);
             if (!(client === null || client === void 0 ? void 0 : client.id)) {
                 logger.error('Client id is not found');
+                return;
+            }
+            if (packet.payload.length < 0) {
+                logger.error('Payload is empty');
                 return;
             }
             if (packet.topic === '/sensor') {
                 this.handleSensor(client.id, packet.payload.toString());
             }
+            else if (packet.topic === '/output-io') {
+                this.handleIoOutput(client.id, packet.payload.toString());
+            }
+            else if (packet.topic === '/input-io') {
+                this.handleIoInput(client.id, packet.payload.toString());
+            }
             else if (packet.topic === '/active') {
                 this.handleDeviceActive(client.id, packet.payload.toString());
             }
+            else if (packet.topic === '/notify') {
+                this.handleNotify(client.id, packet.payload.toString());
+            }
         }
-    };
-    MqttInstance.prototype.onAuthentication = function (client, username, password, done) {
-        return __awaiter(this, void 0, void 0, function () {
-            var decodePassword, device;
+    }
+    onAuthentication(client, username, password, done) {
+        return __awaiter(this, void 0, void 0, function* () {
             var _a;
-            return __generator(this, function (_b) {
-                switch (_b.label) {
-                    case 0:
-                        decodePassword = (_a = password === null || password === void 0 ? void 0 : password.toString()) !== null && _a !== void 0 ? _a : '';
-                        return [4 /*yield*/, devices_1.DeviceMD.findOne({
-                                auth: { username: username, password: decodePassword },
-                            })];
-                    case 1:
-                        device = _b.sent();
-                        if (device == null) {
-                            done({
-                                returnCode: 4 /* AuthErrorCode.BAD_USERNAME_OR_PASSWORD */,
-                                name: 'Authentication',
-                                message: 'Bad username or password',
-                            }, false);
-                        }
-                        else {
-                            this.cacheInfoDevice[client.id] = {
-                                userId: device.by_user.toString(),
-                                deviceId: device._id.toString(),
-                                mac: device.mac,
-                            };
-                            done(null, true);
-                        }
-                        return [2 /*return*/];
+            const decodePassword = (_a = password === null || password === void 0 ? void 0 : password.toString()) !== null && _a !== void 0 ? _a : '';
+            /* logger.info(
+              'Client authenticated => ',
+              client.id,
+              ' - username: ',
+              username,
+              ' - password: ',
+              decodePassword
+              ); */
+            /* get device in database */
+            const device = yield devices_1.DeviceMD.findOne({
+                auth: { username: username, password: decodePassword },
+            });
+            logger.info('Client authenticated => ', client.id, ' - deviceId: ', device === null || device === void 0 ? void 0 : device._id.toString());
+            if (device == null) {
+                done({
+                    returnCode: 4 /* AuthErrorCode.BAD_USERNAME_OR_PASSWORD */,
+                    name: 'Authentication',
+                    message: 'Bad username or password',
+                }, false);
+            }
+            else {
+                // this.cacheInfoClient[client.id] = {
+                //   userId: device.by_user.toString(),
+                //   deviceId: device._id.toString(),
+                //   mac: device.mac,
+                // };
+                this.setClientCache(client, device._id.toString(), device.by_user.toString(), device.mac);
+                done(null, true);
+            }
+        });
+    }
+    sendPayload(id, topic, msg) {
+        var _a;
+        console.log('Send to device: ', id, 'clienId: ', (_a = this.getClientByDeviceId(id)) === null || _a === void 0 ? void 0 : _a.id);
+        const _ctx = this.getClientByDeviceId(id);
+        if (_ctx) {
+            console.log('Publish to device: ', id, ' - topic: ', topic, ' - msg: ', msg);
+            _ctx.publish({
+                cmd: 'publish',
+                topic,
+                payload: msg,
+                dup: false,
+                retain: false,
+                qos: 1,
+            }, (err) => {
+                if (err) {
+                    logger.error('Publish error: ', err);
                 }
             });
-        });
-    };
-    MqttInstance.prototype.start = function () {
-        return __awaiter(this, void 0, void 0, function () {
-            var _this = this;
-            return __generator(this, function (_a) {
-                // logger.info('Starting MQTT instance');
-                this.aedes.authenticate = this.onAuthentication.bind(this);
-                this.aedes.on('client', this.onConnected.bind(this));
-                this.aedes.on('clientDisconnect', this.onDisconnected.bind(this));
-                this.aedes.on('publish', this.onPublished.bind(this));
-                this.aedes.on('ping', this.onPing.bind(this));
-                /* start listen server on port */
-                this.server.listen(this.port, function () {
-                    logger.info("MQTT server listening on port: {".concat(_this.port, "}"));
-                });
-                return [2 /*return*/];
+        }
+    }
+    setClientCache(client, deviceId, userId, mac) {
+        this.cacheInfoClient[client.id] = {
+            userId,
+            deviceId,
+            mac,
+        };
+        this.cacheLinkDevice[deviceId] = {
+            ctx: client,
+        };
+    }
+    getClientByDeviceId(deviceId) {
+        return deviceId in this.cacheLinkDevice
+            ? this.cacheLinkDevice[deviceId].ctx
+            : undefined;
+    }
+    getClientByClientId(clientId) {
+        return this.cacheInfoClient[clientId].deviceId
+            ? this.cacheLinkDevice[this.cacheInfoClient[clientId].deviceId].ctx
+            : undefined;
+    }
+    removeCacheByDeviceId(deviceId) {
+        const _clientId = this.cacheLinkDevice[deviceId].ctx.id;
+        const _deviceId = deviceId;
+        delete this.cacheInfoClient[_clientId];
+        if (this.cacheLinkDevice[_deviceId].ctx.closed) {
+            delete this.cacheLinkDevice[_deviceId];
+        }
+    }
+    removeCacheByClientId(clientId) {
+        const _deviceId = this.cacheInfoClient[clientId].deviceId;
+        const _clientId = clientId;
+        delete this.cacheInfoClient[_clientId];
+        delete this.cacheLinkDevice[_deviceId];
+    }
+    start() {
+        return __awaiter(this, void 0, void 0, function* () {
+            // logger.info('Starting MQTT instance');
+            this.aedes.authenticate = this.onAuthentication.bind(this);
+            this.aedes.on('client', this.onConnected.bind(this));
+            this.aedes.on('clientDisconnect', this.onDisconnected.bind(this));
+            this.aedes.on('publish', this.onPublished.bind(this));
+            this.aedes.on('ping', this.onPing.bind(this));
+            /* start listen server on port */
+            this.server.listen(this.port, () => {
+                logger.info(`MQTT server listening on port: {${this.port}}`);
             });
         });
-    };
-    MqttInstance.prototype.stop = function () {
-        return __awaiter(this, void 0, void 0, function () {
-            return __generator(this, function (_a) {
-                logger.info('Stopping MQTT instance');
-                /* stop listen server on port */
-                this.server.close(function () {
-                    logger.info('MQTT server stopped');
-                });
-                return [2 /*return*/];
+    }
+    stop() {
+        return __awaiter(this, void 0, void 0, function* () {
+            logger.info('Stopping MQTT instance');
+            /* stop listen server on port */
+            this.server.close(() => {
+                logger.info('MQTT server stopped');
             });
         });
-    };
-    return MqttInstance;
-}(ManageService_1.RocketService));
+    }
+}
 exports.default = new MqttInstance(parseInt(process.env.PORT_SOCKET_MQTT || '1883'));
 //# sourceMappingURL=index.js.map

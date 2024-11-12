@@ -1,5 +1,11 @@
 import express from 'express';
 import { RocketService } from '../ManageService';
+export interface DataApi {
+    mac: string;
+    userId: string;
+    deviceId: string;
+    data: any;
+}
 export declare const API_SERVICE_NAME = "api-service";
 declare class APIInstance extends RocketService {
     constructor(port: number);

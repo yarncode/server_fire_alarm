@@ -12,6 +12,7 @@ declare class Device {
     private generateToken;
     device_list(req: Request, res: Response): Promise<any>;
     device_info(req: Request, res: Response): Promise<any>;
+    io_info(req: Request, res: Response): Promise<any>;
     save_device_setting(req: Request, res: Response): Promise<any>;
     device_setting(req: Request, res: Response): Promise<any>;
     create_device(req: Request, res: Response): Promise<any>;

@@ -143,24 +143,24 @@ declare const DeviceMD: mongoose.Model<{
     _id: mongoose.Types.ObjectId;
 }>>;
 declare const DeviceSettingMD: mongoose.Model<{
-    deviceId: mongoose.Types.ObjectId;
+    by_device: mongoose.Types.ObjectId;
     threshold: any;
 }, {}, {}, {}, mongoose.Document<unknown, {}, {
-    deviceId: mongoose.Types.ObjectId;
+    by_device: mongoose.Types.ObjectId;
     threshold: any;
 }> & {
-    deviceId: mongoose.Types.ObjectId;
+    by_device: mongoose.Types.ObjectId;
     threshold: any;
 } & {
     _id: mongoose.Types.ObjectId;
 }, mongoose.Schema<any, mongoose.Model<any, any, any, any, any, any>, {}, {}, {}, {}, mongoose.DefaultSchemaOptions, {
-    deviceId: mongoose.Types.ObjectId;
+    by_device: mongoose.Types.ObjectId;
     threshold: any;
 }, mongoose.Document<unknown, {}, mongoose.FlatRecord<{
-    deviceId: mongoose.Types.ObjectId;
+    by_device: mongoose.Types.ObjectId;
     threshold: any;
 }>> & mongoose.FlatRecord<{
-    deviceId: mongoose.Types.ObjectId;
+    by_device: mongoose.Types.ObjectId;
     threshold: any;
 }> & {
     _id: mongoose.Types.ObjectId;

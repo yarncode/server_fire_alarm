@@ -4,19 +4,19 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.main_auth = void 0;
-var jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
+const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 /* my import */
-var account_1 = require("../controller/account");
+const account_1 = require("../controller/account");
 exports.main_auth = {
-    validate_token: function (req, res, next) {
+    validate_token: (req, res, next) => {
         var _a;
-        var token = (_a = req.headers['_token']) === null || _a === void 0 ? void 0 : _a.toString();
+        const token = (_a = req.headers['_token']) === null || _a === void 0 ? void 0 : _a.toString();
         if (!token) {
             return res.status(400).json({ code: '108015', message: account_1.ACCOUNT_MESSAGE['108015'] });
         }
         /* verify token */
         try {
-            var decoded = jsonwebtoken_1.default.verify(token, (process.env.JWT_SIGNATURE_SECRET || 'secret'));
+            const decoded = jsonwebtoken_1.default.verify(token, (process.env.JWT_SIGNATURE_SECRET || 'secret'));
             // console.log(decoded);
             req.body['email'] = decoded['email']; // set email
             next();

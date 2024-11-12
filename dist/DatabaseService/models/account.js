@@ -24,9 +24,9 @@ var __importStar = (this && this.__importStar) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.UserMD = exports.MODEL_USER_NAME = void 0;
-var mongoose_1 = __importStar(require("mongoose"));
+const mongoose_1 = __importStar(require("mongoose"));
 exports.MODEL_USER_NAME = 'User';
-var User = new mongoose_1.Schema({
+const User = new mongoose_1.Schema({
     name: { type: String },
     email: { type: String, required: true, unique: true },
     username: { type: String },
@@ -36,6 +36,6 @@ var User = new mongoose_1.Schema({
     avatar_url: { type: String },
     state: { type: String, enum: ['removed', 'active', 'disable'], require: true }
 }, { timestamps: true });
-var UserMD = mongoose_1.default.model(exports.MODEL_USER_NAME, User);
+const UserMD = mongoose_1.default.model(exports.MODEL_USER_NAME, User);
 exports.UserMD = UserMD;
 //# sourceMappingURL=account.js.map

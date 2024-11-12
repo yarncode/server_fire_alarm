@@ -9,10 +9,10 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.main_auth = void 0;
-exports.main_auth = {
-    validate_token: (socket, next) => __awaiter(void 0, void 0, void 0, function* () {
-        // console.log('Socket: ', socket.id, ' - Auth: ', socket.handshake.auth);
+exports.controller = void 0;
+exports.controller = {
+    sendMessage: (rocket, _cbData) => __awaiter(void 0, void 0, void 0, function* () {
+        rocket.sendMessage('mqtt-service', _cbData());
     }),
 };
-//# sourceMappingURL=middleware.js.map
+//# sourceMappingURL=common.js.map
