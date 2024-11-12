@@ -26,4 +26,5 @@ jobs:
               ls ~/.ssh
               cd /home/miru/server_fire_alarm
               ls -a
+              git pull
           
