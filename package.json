@@ -39,7 +39,6 @@
     "version": "npm run build && npm run changelog:update"
   },
   "devDependencies": {
-    "@types/bull": "^4.10.0",
     "@types/chai": "^4.3.5",
     "@types/mocha": "^10.0.1",
     "@types/morgan": "^1.9.9",

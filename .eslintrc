@@ -10,6 +10,7 @@
 	"rules": {
 		// "indent": ["error", "tab"],
 		"quotes": ["error", "single"],
-		"no-empty-function": "off"
+		"no-unused-vars": "off",
+		"no-empty-function": "warn"
 	}
 }
