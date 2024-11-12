@@ -18,10 +18,9 @@ jobs:
             password: ${{ secrets.SERVER_PASS }}
             port: ${{ secrets.SERVER_PORT }}
             key: ${{ secrets.SSH_PRIVATE_KEY }}
-            passphrase: ${{ secrets.SSH_PRIVATE_KEY_PASS }}
             script: |
               eval `ssh-agent -s`
-              ssh-add ~/.ssh/id_ed25519
+              ssh-add ~/.ssh/git_id_rsa
               cd /home/miru/server_fire_alarm
               git fetch origin
               git checkout production
