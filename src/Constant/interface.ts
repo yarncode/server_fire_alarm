@@ -11,6 +11,18 @@ export type ServiceType =
 
 export type ActionPayload = 'GET' | 'SET' | 'NOTIFY' | 'CONTROL' | 'CONFIG';
 
+export type TDataMqtt = undefined | string | object;
+export interface QueuePayloadRequest<T = any> {
+  code: string;
+  action: ActionPayload;
+  payload: T;
+}
+
+export interface QueuePayloadResponse {
+  code: string;
+  data: any;
+}
+
 export interface PayloadRocket {
   [key: string]: any;
 }
@@ -19,5 +31,5 @@ export interface DataRocketDynamic<P = any> {
   service: ServiceType;
   action: ActionPayload;
   code: string;
-  payload: P,
+  payload: P;
 }

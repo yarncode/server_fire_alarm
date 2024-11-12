@@ -192,6 +192,7 @@ class Device {
       const { id } = req.query;
 
       let fix_device = false;
+      let fix_threshold = false;
       const device = await DeviceMD.findOne({ _id: id });
 
       if (device === null) {
@@ -264,49 +265,57 @@ class Device {
       }
 
       /* update setting */
-      if (temperature?.start) {
+      if (temperature?.start >= 0) {
         _setting.$set('threshold.temperature.start', temperature.start);
+        fix_threshold = true;
       }
 
-      if (temperature?.end) {
+      if (temperature?.end >= 0) {
         _setting.$set('threshold.temperature.end', temperature.end);
+        fix_threshold = true;
       }
 
-      if (humidity?.start) {
+      if (humidity?.start >= 0) {
         _setting.$set('threshold.humidity.start', humidity.start);
+        fix_threshold = true;
       }
 
-      if (humidity?.end) {
+      if (humidity?.end >= 0) {
         _setting.$set('threshold.humidity.end', humidity.end);
+        fix_threshold = true;
       }
 
-      if (smoke?.start) {
+      if (smoke?.start >= 0) {
         _setting.$set('threshold.smoke.start', smoke.start);
+        fix_threshold = true;
       }
 
-      if (smoke?.end) {
+      if (smoke?.end >= 0) {
         _setting.$set('threshold.smoke.end', smoke.end);
+        fix_threshold = true;
       }
 
       /* save setting */
       await _setting.save();
 
-      controller.sendMessage(req.app.locals['_ctx'] as RocketService, () => {
-        const _data: DataRocketDynamic<DataApi> = {
-          service: 'api-service',
-          action: 'CONFIG',
-          code: CODE_EVENT_SYNC_THRESHOLD,
-          payload: {
-            mac: req.body['_mac'],
-            deviceId: req.body['_device_id'],
-            userId: req.body['_user_id'],
-            data: {
-              threshold: _setting.threshold,
+      if (fix_threshold) {
+        controller.sendMessage(req.app.locals['_ctx'] as RocketService, () => {
+          const _data: DataRocketDynamic<DataApi> = {
+            service: 'api-service',
+            action: 'CONFIG',
+            code: CODE_EVENT_SYNC_THRESHOLD,
+            payload: {
+              mac: req.body['_mac'],
+              deviceId: req.body['_device_id'],
+              userId: req.body['_user_id'],
+              data: {
+                threshold: _setting.threshold,
+              },
             },
-          },
-        };
-        return _data;
-      });
+          };
+          return _data;
+        });
+      }
 
       return res.status(200).json({
         code: '107017',
