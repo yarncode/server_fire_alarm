@@ -21,6 +21,8 @@ jobs:
             passphrase: ${{ secrets.SSH_PRIVATE_KEY_PASS }}
             script_stop: true
             script: |
+              eval `ssh-agent -s`
+              ssh-add ~/.ssh/id_ed25519
               cd /home/miru/server_fire_alarm
               git fetch origin
               git checkout production
