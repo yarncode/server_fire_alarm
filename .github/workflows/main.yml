@@ -21,10 +21,6 @@ jobs:
             passphrase: ${{ secrets.SSH_PRIVATE_KEY_PASS }}
             script_stop: true
             script: |
-              cd /home/miru/server_fire_alarm
-              git fetch origin
-              git checkout production
-              git pull
-              yarn build
-              pm2 reload fire_alarm_server
+              whoami 
+              ls -a
           
