@@ -22,6 +22,6 @@ jobs:
             script_stop: true
             script: |
               eval `ssh-agent -s`
-              ssh-add ~/.ssh/git_id_rsa
+              ssh-add ~/.ssh/id_rsa
               git pull
           
