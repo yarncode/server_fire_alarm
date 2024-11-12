@@ -18,6 +18,7 @@ import {
   CODE_EVENT_UPDATE_OUTPUT,
   CODE_EVENT_UPDATE_INPUT,
   CODE_EVENT_SYNC_THRESHOLD,
+  CODE_EVENT_SYNC_GPIO,
   CODE_EVENT_UNKNOWN,
 } from '../Constant';
 import { DataApi } from '../APIService';
@@ -50,6 +51,7 @@ interface InfoClientMQTTCache {
 }
 
 interface LinkDeviceCache {
+  /* key: deviceId store session connect mqtt client */
   [deviceId: string]: {
     ctx: Client;
   };
@@ -135,23 +137,44 @@ class MqttInstance extends RocketService {
       const mac = this.cacheInfoClient[clientId].mac;
 
       const _payload: NotifyPayload = JSON.parse(payload);
+      const _type = _payload._type?.toUpperCase() ?? CODE_EVENT_UNKNOWN;
 
       if (userId && deviceId && mac) {
-        const data: DataRocketDynamic<DataMqtt> = {
-          service: 'mqtt-service',
-          action: 'SET',
-          code: _payload._type?.toUpperCase() ?? CODE_EVENT_UNKNOWN,
-          payload: {
-            mac,
-            userId,
-            deviceId,
-            topic: '/notify',
-            data: payload,
-          },
-        };
+        if (_type === CODE_EVENT_SYNC_THRESHOLD) {
+          const data: DataRocketDynamic<DataMqtt> = {
+            service: 'mqtt-service',
+            action: 'NOTIFY',
+            code: _type,
+            payload: {
+              mac,
+              userId,
+              deviceId,
+              topic: '/notify',
+              data: payload,
+            },
+          };
 
-        /* set data into database */
-        this.sendMessage('db-service', data);
+          /* set data into database */
+          this.sendMessage('socket-io-service', data);
+        } else if (
+          [CODE_EVENT_ACTIVE_DEVICE, CODE_EVENT_SYNC_GPIO].includes(_type)
+        ) {
+          const data: DataRocketDynamic<DataMqtt> = {
+            service: 'mqtt-service',
+            action: 'SET',
+            code: _type,
+            payload: {
+              mac,
+              userId,
+              deviceId,
+              topic: '/notify',
+              data: payload,
+            },
+          };
+
+          /* set data into database */
+          this.sendMessage('db-service', data);
+        }
       }
     } catch (error) {
       logger.error(error);
@@ -257,9 +280,20 @@ class MqttInstance extends RocketService {
     const deviceId = payload.deviceId;
     // const mac = payload.mac;
 
+    /* with action config, remember add code into payload */
+    /* 
+      {
+        code: CODE_?,
+        data: {...}  
+      }
+    */
     if (action === 'CONFIG') {
       if (code === CODE_EVENT_SYNC_THRESHOLD) {
-        this.sendPayload(deviceId, '/config', JSON.stringify(payload.data));
+        this.sendPayload(
+          deviceId,
+          '/config',
+          JSON.stringify({ code, data: payload.data })
+        );
       }
     }
   }
@@ -287,7 +321,7 @@ class MqttInstance extends RocketService {
 
     /* remove client when disconnect */
     this.handleStateDevice(client.id, 'OFFLINE');
-    // this.removeCacheByClientId(client.id);
+    this.removeCacheByClientId(client.id);
   }
 
   onPing(packet: PingreqPacket, client: Client): void {
@@ -350,7 +384,7 @@ class MqttInstance extends RocketService {
       'Client authenticated => ',
       client.id,
       ' - deviceId: ',
-      device?._id.toString(),
+      device?._id.toString()
     );
 
     if (device == null) {
@@ -457,8 +491,12 @@ class MqttInstance extends RocketService {
     const _deviceId = this.cacheInfoClient[clientId].deviceId;
     const _clientId = clientId;
 
+    /* check socket by storage by deviceId is closed */
+    if (this.cacheLinkDevice[_deviceId].ctx.closed) {
+      delete this.cacheLinkDevice[_deviceId];
+    }
+
     delete this.cacheInfoClient[_clientId];
-    delete this.cacheLinkDevice[_deviceId];
   }
 
   async start() {

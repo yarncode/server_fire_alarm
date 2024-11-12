@@ -13,6 +13,7 @@ import {
   CODE_EVENT_UPDATE_OUTPUT,
   CODE_EVENT_UPDATE_INPUT,
   CODE_EVENT_SYNC_GPIO,
+  CODE_EVENT_SYNC_THRESHOLD,
 } from '../Constant';
 import { UserMD } from '../DatabaseService/models/account';
 import { DeviceMD } from '../DatabaseService/models/devices';
@@ -72,13 +73,25 @@ class SocketIOInstance extends RocketService {
     code: string
   ): void {
     const userId = payload.userId;
+    const deviceId = payload.deviceId;
 
     if (action == 'NOTIFY') {
       if (code === CODE_EVENT_ACTIVE_DEVICE) {
         /* [PATH: '{userId}/device/active'] */
-        if (payload.topic === '/active') {
-          this.io.emit(`${userId}/device/active`, JSON.parse(payload.data));
-        }
+        console.log('payload active: ', payload.data);
+        // this.io.emit(`${userId}/device/active`, JSON.parse(payload.data));
+        this.deviceBoardcastMsg(
+          deviceId,
+          `${userId}/device/active`,
+          JSON.parse(payload.data)
+        );
+      } else if (code === CODE_EVENT_SYNC_THRESHOLD) {
+        // this.io.emit(`${userId}/device/active`, JSON.parse(payload.data));
+        this.deviceBoardcastMsg(
+          deviceId,
+          `${userId}/${deviceId}/sync_threshold`,
+          JSON.parse(payload.data)
+        );
       }
     }
   }
@@ -94,10 +107,18 @@ class SocketIOInstance extends RocketService {
     if (action == 'NOTIFY') {
       if (code === CODE_EVENT_UPDATE_SENSOR) {
         /* [PATH: '{userId}/{deviceId}/sensor'] */
-        this.io.emit(`${userId}/${deviceId}/sensor`, payload.data);
+        this.deviceBoardcastMsg(
+          deviceId,
+          `${userId}/${deviceId}/sensor`,
+          payload.data
+        );
       } else if (code === CODE_EVENT_UPDATE_STATE_DEVICE) {
         /* [PATH: '{userId}/{deviceId}/status'] */
-        this.io.emit(`${userId}/${deviceId}/status`, payload.data);
+        this.deviceBoardcastMsg(
+          deviceId,
+          `${userId}/${deviceId}/status`,
+          payload.data
+        );
       } else if (code === CODE_EVENT_UPDATE_OUTPUT) {
         this.deviceBoardcastMsg(
           deviceId,
@@ -193,14 +214,16 @@ class SocketIOInstance extends RocketService {
     delete this.cacheClientLinkDevice[socketId];
   }
 
-  validateBasePayload(payload: BasePayload<GpioState>): boolean {
+  validateControlPayload(payload: BasePayload<GpioState>): boolean {
     return payload?.deviceId ? true : false;
   }
 
   onConnection(socket: Socket): void {
     this.onConnected(socket);
+
+    /* register event control_io */
     socket.on('control_io', (_: BasePayload<GpioState>) => {
-      if (this.validateBasePayload(_)) {
+      if (this.validateControlPayload(_)) {
         this.onControl(socket, _);
       }
     });
