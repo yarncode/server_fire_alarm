@@ -75,11 +75,133 @@ class DatabaseInstance extends RocketService {
 
     if (pay.service === 'mqtt-service') {
       // this.handleDataMqtt(pay.payload as DataMqtt, pay.action, pay.code);
-      this.queueDeviceMqtt.add({
+      // this.queueDeviceMqtt.add({
+      //   action: pay.action,
+      //   code: pay.code,
+      //   payload: pay.payload,
+      // });
+      this.handleMqttPayload({
         action: pay.action,
         code: pay.code,
         payload: pay.payload,
-      });
+      } as QueuePayloadRequest<DataMqtt>);
+    }
+  }
+
+  private async handleMqttPayload(
+    payload: QueuePayloadRequest<DataMqtt>
+  ): Promise<void> {
+    const _action: ActionPayload = payload.action;
+    const _code: string = payload.code;
+    let _data: TDataMqtt = payload.payload.data;
+
+    /* validate payload */
+    if (typeof _data === 'string') {
+      _data = JSON.parse(_data);
+    }
+
+    if (payload.payload === null || payload.payload === undefined) {
+      logger.error('Payload not found');
+      return;
+    }
+
+    try {
+      if (_action === 'SET') {
+        /* check code data */
+        if (_code === CODE_EVENT_UPDATE_SENSOR) {
+          const res: ResponseDataSensor = await updateSensor({
+            mac: payload.payload.mac,
+            userId: payload.payload.userId,
+            deviceId: payload.payload.deviceId,
+            data: _data,
+          } as InfoSensor);
+
+          this.sendMessage('socket-io-service', {
+            service: 'db-service',
+            action: 'NOTIFY',
+            code: CODE_EVENT_UPDATE_SENSOR,
+            payload: {
+              mac: payload.payload.mac,
+              userId: payload.payload.userId,
+              deviceId: payload.payload.deviceId,
+              data: res,
+            },
+          });
+          // done(null, { code, data: res } as QueuePayloadResponse); // done handle save data sensor
+          // this.queueSensor.add(data);
+        } else if (
+          _code === CODE_EVENT_UPDATE_OUTPUT ||
+          _code === CODE_EVENT_UPDATE_INPUT
+        ) {
+          const res: ResponseGpioState = await updateGpio({
+            mac: payload.payload.mac,
+            userId: payload.payload.userId,
+            deviceId: payload.payload.deviceId,
+            data: _data,
+          } as IoState);
+
+          this.sendMessage('socket-io-service', {
+            service: 'db-service',
+            action: 'NOTIFY',
+            code: _code,
+            payload: {
+              mac: payload.payload.mac,
+              userId: payload.payload.userId,
+              deviceId: payload.payload.deviceId,
+              data: res,
+            },
+          });
+          // done(null, { code, data: res } as QueuePayloadResponse); // done handle save data sensor
+          // this.queueStateIO.add(data);
+        } else if (_code === CODE_EVENT_SYNC_GPIO) {
+          const res: ResponseInfoIo = await createGpio({
+            mac: payload.payload.mac,
+            userId: payload.payload.userId,
+            deviceId: payload.payload.deviceId,
+            data: _data,
+          } as InfoIo);
+
+          this.sendMessage('socket-io-service', {
+            service: 'db-service',
+            action: 'NOTIFY',
+            code: CODE_EVENT_SYNC_GPIO,
+            payload: {
+              mac: payload.payload.mac,
+              userId: payload.payload.userId,
+              deviceId: payload.payload.deviceId,
+              data: res,
+            },
+          });
+          // done(null, { code, data: res } as QueuePayloadResponse); // done handle save state device
+          // this.queueSyncIo.add(data);
+        } else if (_code === CODE_EVENT_UPDATE_STATE_DEVICE) {
+
+          logger.info('update state device');
+
+          // this.queueStateDevice.add(data);
+          const res: DataStateDevice = await updateStateDevice({
+            mac: payload.payload.mac,
+            userId: payload.payload.userId,
+            deviceId: payload.payload.deviceId,
+            data: _data,
+          } as InfoStateDevice);
+
+          this.sendMessage('socket-io-service', {
+            service: 'db-service',
+            action: 'NOTIFY',
+            code: _code,
+            payload: {
+              mac: payload.payload.mac,
+              userId: payload.payload.userId,
+              deviceId: payload.payload.deviceId,
+              data: res,
+            },
+          });
+        }
+      }
+    } catch (error) {
+      logger.error((error as Error)?.message);
+      return;
     }
   }
 

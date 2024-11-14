@@ -3,6 +3,7 @@ import { DeviceMD, DataStateDevice } from '../models/devices';
 
 /* func update state device */
 export const updateStateDevice = async (info: InfoStateDevice) => {
+
   const { deviceId, mac, userId } = info;
   const { status } = info.data;
 

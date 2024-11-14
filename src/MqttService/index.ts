@@ -244,7 +244,7 @@ class MqttInstance extends RocketService {
         mac: this.cacheInfoClient[clientId].mac,
         userId: this.cacheInfoClient[clientId].userId,
         deviceId: this.cacheInfoClient[clientId].deviceId,
-        topic: '/sensor',
+        topic: '/status',
         data: {
           status,
         } as DataStateDevice,
@@ -321,7 +321,7 @@ class MqttInstance extends RocketService {
 
     /* remove client when disconnect */
     this.handleStateDevice(client.id, 'OFFLINE');
-    this.removeCacheByClientId(client.id);
+    // this.removeCacheByClientId(client.id);
   }
 
   onPing(packet: PingreqPacket, client: Client): void {
@@ -366,14 +366,14 @@ class MqttInstance extends RocketService {
   ): Promise<void> {
     const decodePassword = password?.toString() ?? '';
 
-    /* logger.info(
+    logger.info(
       'Client authenticated => ',
       client.id,
       ' - username: ',
       username,
       ' - password: ',
       decodePassword
-      ); */
+    );
 
     /* get device in database */
     const device = await DeviceMD.findOne({

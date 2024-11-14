@@ -78,7 +78,7 @@ class SocketIOInstance extends RocketService {
     if (action == 'NOTIFY') {
       if (code === CODE_EVENT_ACTIVE_DEVICE) {
         /* [PATH: '{userId}/device/active'] */
-        console.log('payload active: ', payload.data);
+        // console.log('payload active: ', payload.data);
         // this.io.emit(`${userId}/device/active`, JSON.parse(payload.data));
         this.deviceBoardcastMsg(
           deviceId,
@@ -114,6 +114,9 @@ class SocketIOInstance extends RocketService {
         );
       } else if (code === CODE_EVENT_UPDATE_STATE_DEVICE) {
         /* [PATH: '{userId}/{deviceId}/status'] */
+
+        logger.info('payload status: ', `${userId}/${deviceId}/status`);
+
         this.deviceBoardcastMsg(
           deviceId,
           `${userId}/${deviceId}/status`,
@@ -274,14 +277,14 @@ class SocketIOInstance extends RocketService {
           .select('_id')
           .exec();
 
-        logger.info(
-          'Client authenticated => ',
-          socket.id,
-          ' - userId: ',
-          user._id.toString(),
-          ' - devices: ',
-          _devices.length
-        );
+        // logger.info(
+        //   'Client authenticated => ',
+        //   socket.id,
+        //   ' - userId: ',
+        //   user._id.toString(),
+        //   ' - devices: ',
+        //   _devices.length
+        // );
 
         this.cacheClientLinkDevice[socket.id] = {
           userId: user._id.toString(),
