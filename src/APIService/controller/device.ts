@@ -16,7 +16,10 @@ import {
   DeviceSettingMD,
 } from '../../DatabaseService/models/devices';
 import { DataRocketDynamic } from '../../Constant/interface';
-import { CODE_EVENT_SYNC_THRESHOLD } from '../../Constant';
+import {
+  CODE_EVENT_SYNC_THRESHOLD,
+  CODE_EVENT_REMOVE_DEVICE,
+} from '../../Constant';
 
 interface CreateDevicePayload {
   email: string;
@@ -184,11 +187,7 @@ class Device {
   /* {for user}: [POST] /device/setting */
   async save_device_setting(req: Request, res: Response): Promise<any> {
     try {
-      const {
-        name,
-        desc,
-        threshold: { temperature, humidity, smoke },
-      } = req.body;
+      const { name, desc, threshold } = req.body;
       const { id } = req.query;
 
       let fix_device = false;
@@ -201,12 +200,12 @@ class Device {
           .json({ code: '107001', message: DEVICE_MESSAGE['107001'] });
       }
 
-      if (name) {
+      if (name && name != device.name) {
         device.$set('name', name);
         fix_device = true;
       }
 
-      if (desc) {
+      if (desc && desc != device.desc) {
         device.$set('desc', desc);
         fix_device = true;
       }
@@ -215,106 +214,131 @@ class Device {
         await device.save();
       }
 
-      /* find setting */
-      const _setting = await DeviceSettingMD.findOne({ by_device: id });
+      if (threshold) {
+        const { temperature, humidity, smoke } = threshold;
 
-      /* create new if not found */
-      if (!_setting) {
-        const newSetting = new DeviceSettingMD({
-          by_device: id,
-          threshold: {
-            temperature: {
-              start: temperature?.start || 0,
-              end: temperature?.end || 0,
-            },
-            humidity: {
-              start: humidity?.start || 0,
-              end: humidity?.end || 0,
-            },
-            smoke: {
-              start: smoke?.start || 0,
-              end: smoke?.end || 0,
-            },
-          },
-        });
+        /* find setting */
+        const _setting = await DeviceSettingMD.findOne({ by_device: id });
 
-        /* save new setting */
-        await newSetting.save();
-
-        controller.sendMessage(req.app.locals['_ctx'] as RocketService, () => {
-          const _data: DataRocketDynamic<DataApi> = {
-            service: 'api-service',
-            action: 'CONFIG',
-            code: CODE_EVENT_SYNC_THRESHOLD,
-            payload: {
-              mac: req.body['_mac'],
-              deviceId: req.body['_device_id'],
-              userId: req.body['_user_id'],
-              data: {
-                threshold: newSetting.threshold,
+        /* create new if not found */
+        if (!_setting) {
+          const newSetting = new DeviceSettingMD({
+            by_device: id,
+            threshold: {
+              temperature: {
+                start: temperature?.start || 0,
+                end: temperature?.end || 0,
+              },
+              humidity: {
+                start: humidity?.start || 0,
+                end: humidity?.end || 0,
+              },
+              smoke: {
+                start: smoke?.start || 0,
+                end: smoke?.end || 0,
               },
             },
-          };
-          return _data;
-        });
+          });
 
-        return res.status(200).json({
-          code: '107017',
-          message: DEVICE_MESSAGE['107017'],
-        });
-      }
+          /* save new setting */
+          await newSetting.save();
 
-      /* update setting */
-      if (temperature?.start >= 0) {
-        _setting.$set('threshold.temperature.start', temperature.start);
-        fix_threshold = true;
-      }
+          controller.sendMessage(
+            req.app.locals['_ctx'] as RocketService,
+            () => {
+              const _data: DataRocketDynamic<DataApi> = {
+                service: 'api-service',
+                action: 'CONFIG',
+                code: CODE_EVENT_SYNC_THRESHOLD,
+                payload: {
+                  mac: req.body['_mac'],
+                  deviceId: req.body['_device_id'],
+                  userId: req.body['_user_id'],
+                  data: {
+                    threshold: newSetting.threshold,
+                  },
+                },
+              };
+              return _data;
+            }
+          );
 
-      if (temperature?.end >= 0) {
-        _setting.$set('threshold.temperature.end', temperature.end);
-        fix_threshold = true;
-      }
+          return res.status(200).json({
+            code: '107017',
+            message: DEVICE_MESSAGE['107017'],
+          });
+        }
 
-      if (humidity?.start >= 0) {
-        _setting.$set('threshold.humidity.start', humidity.start);
-        fix_threshold = true;
-      }
+        /* update setting */
+        if (
+          temperature?.start >= 0 &&
+          temperature?.start != _setting.threshold.temperature.start
+        ) {
+          _setting.$set('threshold.temperature.start', temperature.start);
+          fix_threshold = true;
+        }
 
-      if (humidity?.end >= 0) {
-        _setting.$set('threshold.humidity.end', humidity.end);
-        fix_threshold = true;
-      }
+        if (
+          temperature?.end >= 0 &&
+          temperature?.end != _setting.threshold.temperature.end
+        ) {
+          _setting.$set('threshold.temperature.end', temperature.end);
+          fix_threshold = true;
+        }
 
-      if (smoke?.start >= 0) {
-        _setting.$set('threshold.smoke.start', smoke.start);
-        fix_threshold = true;
-      }
+        if (
+          humidity?.start >= 0 &&
+          humidity?.start != _setting.threshold.humidity.start
+        ) {
+          _setting.$set('threshold.humidity.start', humidity.start);
+          fix_threshold = true;
+        }
 
-      if (smoke?.end >= 0) {
-        _setting.$set('threshold.smoke.end', smoke.end);
-        fix_threshold = true;
-      }
+        if (
+          humidity?.end >= 0 &&
+          humidity?.end != _setting.threshold.humidity.end
+        ) {
+          _setting.$set('threshold.humidity.end', humidity.end);
+          fix_threshold = true;
+        }
 
-      /* save setting */
-      await _setting.save();
+        if (
+          smoke?.start >= 0 &&
+          smoke?.start != _setting.threshold.smoke.start
+        ) {
+          _setting.$set('threshold.smoke.start', smoke.start);
+          fix_threshold = true;
+        }
 
-      if (fix_threshold) {
-        controller.sendMessage(req.app.locals['_ctx'] as RocketService, () => {
-          const _data: DataRocketDynamic<DataApi> = {
-            service: 'api-service',
-            action: 'CONFIG',
-            code: CODE_EVENT_SYNC_THRESHOLD,
-            payload: {
-              mac: req.body['_mac'],
-              deviceId: req.body['_device_id'],
-              userId: req.body['_user_id'],
-              data: {
-                threshold: _setting.threshold,
-              },
-            },
-          };
-          return _data;
-        });
+        if (smoke?.end >= 0 && smoke?.end != _setting.threshold.smoke.end) {
+          _setting.$set('threshold.smoke.end', smoke.end);
+          fix_threshold = true;
+        }
+
+        if (fix_threshold) {
+          /* save setting */
+          await _setting.save();
+
+          controller.sendMessage(
+            req.app.locals['_ctx'] as RocketService,
+            () => {
+              const _data: DataRocketDynamic<DataApi> = {
+                service: 'api-service',
+                action: 'CONFIG',
+                code: CODE_EVENT_SYNC_THRESHOLD,
+                payload: {
+                  mac: req.body['_mac'],
+                  deviceId: req.body['_device_id'],
+                  userId: req.body['_user_id'],
+                  data: {
+                    threshold: _setting.threshold,
+                  },
+                },
+              };
+              return _data;
+            }
+          );
+        }
       }
 
       return res.status(200).json({
@@ -495,6 +519,22 @@ class Device {
 
       /* update state device */
       await device.updateOne({ state: 'removed' }).exec();
+
+      /* notify device is remove */
+      controller.sendMessage(req.app.locals['_ctx'] as RocketService, () => {
+        const _data: DataRocketDynamic<DataApi> = {
+          service: 'api-service',
+          action: 'NOTIFY',
+          code: CODE_EVENT_REMOVE_DEVICE,
+          payload: {
+            mac: req.body['_mac'],
+            deviceId: req.body['_device_id'],
+            userId: req.body['_user_id'],
+            data: {},
+          },
+        };
+        return _data;
+      });
 
       return res
         .status(200)

@@ -1,5 +1,6 @@
 /* node_module import */
-import { Logger } from 'sitka';
+// import { Logger } from 'sitka';
+import Logger from 'node-color-log';
 import server, { Server } from 'net';
 import Aedes, {
   Client,
@@ -20,6 +21,7 @@ import {
   CODE_EVENT_SYNC_THRESHOLD,
   CODE_EVENT_SYNC_GPIO,
   CODE_EVENT_UNKNOWN,
+  CODE_EVENT_REMOVE_DEVICE,
 } from '../Constant';
 import { DataApi } from '../APIService';
 import { DataSocket } from '../SocketIOService';
@@ -30,7 +32,8 @@ import {
   DataStateDevice,
 } from '../DatabaseService/models/devices';
 
-const logger = Logger.getLogger({ name: 'MQTT' });
+const logger = Logger.createNamedLogger('MQTT');
+logger.setDate(() => new Date().toLocaleString());
 
 export interface DataMqtt {
   topic: string;
@@ -295,6 +298,10 @@ class MqttInstance extends RocketService {
           JSON.stringify({ code, data: payload.data })
         );
       }
+    } else if (action === 'NOTIFY') {
+      if (code === CODE_EVENT_REMOVE_DEVICE) {
+        this.sendPayload(deviceId, '/notify', JSON.stringify({ code }));
+      }
     }
   }
 
@@ -467,7 +474,7 @@ class MqttInstance extends RocketService {
 
   getClientByDeviceId(deviceId: string): Client | undefined {
     return deviceId in this.cacheLinkDevice
-      ? this.cacheLinkDevice[deviceId].ctx
+      ? this.cacheLinkDevice[deviceId]?.ctx
       : undefined;
   }
 
@@ -478,6 +485,7 @@ class MqttInstance extends RocketService {
   }
 
   removeCacheByDeviceId(deviceId: string) {
+    logger.info('Remove cache by deviceId: ', deviceId);
     const _clientId = this.cacheLinkDevice[deviceId].ctx.id;
     const _deviceId = deviceId;
 
@@ -488,6 +496,7 @@ class MqttInstance extends RocketService {
   }
 
   removeCacheByClientId(clientId: string) {
+    logger.info('Remove cache by clientId: ', clientId);
     const _deviceId = this.cacheInfoClient[clientId].deviceId;
     const _clientId = clientId;
 

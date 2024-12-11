@@ -1,12 +1,13 @@
 /* node_module import */
-import { Logger } from 'sitka';
+// import { Logger } from 'sitka';
+import Logger from 'node-color-log';
 import { RedisClientType, createClient } from 'redis';
 import { DataRocketDynamic, ServiceType } from '../Constant/interface';
 
 /* local import */
 // import { LIST_OF_SERVICES } from '../Constant'
-
-const logger = Logger.getLogger({ name: 'ROCKET' });
+const logger = Logger.createNamedLogger('ROCKET');
+logger.setDate(() => new Date().toLocaleString());
 
 class RocketService {
   constructor(serviceName: string) {

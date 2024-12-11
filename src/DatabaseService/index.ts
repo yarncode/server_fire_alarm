@@ -1,5 +1,6 @@
 /* node_module import */
-import { Logger } from 'sitka';
+// import { Logger } from 'sitka';
+import Logger from 'node-color-log';
 import mongoose from 'mongoose';
 import msgQueue from 'bull';
 
@@ -33,7 +34,8 @@ import { DataSensor } from './models/sensor';
 import { DataStateDevice } from './models/devices';
 import { DataStateInfoIO, GpioState } from './models/gpio';
 
-const logger = Logger.getLogger({ name: 'DATABASE' });
+const logger = Logger.createNamedLogger('DATABASE');
+logger.setDate(() => new Date().toLocaleString());
 
 export interface DeviceInfo {
   userId: string;
