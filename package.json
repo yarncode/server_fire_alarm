@@ -75,6 +75,7 @@
     "express": "^4.21.0",
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^8.6.3",
+    "node-color-log": "^12.0.1",
     "redis": "^4.7.0",
     "sitka": "^1.1.1",
     "socket.io": "^4.8.0",

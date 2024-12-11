@@ -1,5 +1,6 @@
 /* node_module import */
-import { Logger } from 'sitka';
+// import { Logger } from 'sitka';
+import Logger from 'node-color-log';
 import express from 'express';
 import cors from 'cors';
 import morgan from 'morgan';
@@ -15,7 +16,9 @@ export interface DataApi {
   data: any;
 }
 
-const logger = Logger.getLogger({ name: 'API' });
+
+const logger = Logger.createNamedLogger('API');
+logger.setDate(() => new Date().toLocaleString());
 
 export const API_SERVICE_NAME = 'api-service';
 

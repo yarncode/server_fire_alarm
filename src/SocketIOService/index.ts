@@ -1,5 +1,6 @@
 /* node_module import */
-import { Logger } from 'sitka';
+// import { Logger } from 'sitka';
+import Logger from 'node-color-log';
 import { Server as SocketIOServer, Socket } from 'socket.io';
 
 /* my import */
@@ -21,7 +22,8 @@ import { GpioState } from '../DatabaseService/models/gpio';
 import jwt, { JwtPayload } from 'jsonwebtoken';
 import { ACCOUNT_MESSAGE } from '../APIService/controller/account';
 
-const logger = Logger.getLogger({ name: 'SOCKET_IO' });
+const logger = Logger.createNamedLogger('SOCKET_IO');
+logger.setDate(() => new Date().toLocaleString());
 
 export const SOCKET_IO_SERVICE_NAME = 'socket-io-service';
 
@@ -78,12 +80,19 @@ class SocketIOInstance extends RocketService {
     if (action == 'NOTIFY') {
       if (code === CODE_EVENT_ACTIVE_DEVICE) {
         /* [PATH: '{userId}/device/active'] */
-        console.log('payload active: ', payload.data);
+        logger.info('payload device id: ', deviceId);
+        logger.info('payload active: ', typeof payload.data);
         // this.io.emit(`${userId}/device/active`, JSON.parse(payload.data));
         this.deviceBoardcastMsg(
           deviceId,
           `${userId}/device/active`,
           JSON.parse(payload.data)
+        );
+
+        this.deviceBoardcastMsg(
+          deviceId,
+          `${userId}/device/add`,
+          JSON.stringify({ id: deviceId })
         );
       } else if (code === CODE_EVENT_SYNC_THRESHOLD) {
         // this.io.emit(`${userId}/device/active`, JSON.parse(payload.data));
@@ -114,6 +123,9 @@ class SocketIOInstance extends RocketService {
         );
       } else if (code === CODE_EVENT_UPDATE_STATE_DEVICE) {
         /* [PATH: '{userId}/{deviceId}/status'] */
+
+        logger.info('payload status: ', `${userId}/${deviceId}/status`);
+
         this.deviceBoardcastMsg(
           deviceId,
           `${userId}/${deviceId}/status`,
@@ -147,7 +159,7 @@ class SocketIOInstance extends RocketService {
   private deviceBoardcastMsg(
     deviceId: string,
     eventName: string,
-    msg: string
+    msg: any
   ): void {
     if (this.cacheDeviceLinkClient[deviceId]) {
       this.cacheDeviceLinkClient[deviceId].forEach((sockId) => {
@@ -274,14 +286,14 @@ class SocketIOInstance extends RocketService {
           .select('_id')
           .exec();
 
-        logger.info(
-          'Client authenticated => ',
-          socket.id,
-          ' - userId: ',
-          user._id.toString(),
-          ' - devices: ',
-          _devices.length
-        );
+        // logger.info(
+        //   'Client authenticated => ',
+        //   socket.id,
+        //   ' - userId: ',
+        //   user._id.toString(),
+        //   ' - devices: ',
+        //   _devices.length
+        // );
 
         this.cacheClientLinkDevice[socket.id] = {
           userId: user._id.toString(),
