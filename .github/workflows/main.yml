@@ -19,6 +19,7 @@ jobs:
             port: ${{ secrets.SERVER_PORT }}
             script_stop: true
             script: |
+              source ~/.nvm/nvm.sh
               cd /home/miru/server_fire_alarm
               git pull
               yarn
