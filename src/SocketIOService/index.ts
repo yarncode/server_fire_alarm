@@ -21,6 +21,8 @@ import { DeviceMD } from '../DatabaseService/models/devices';
 import { GpioState } from '../DatabaseService/models/gpio';
 import jwt, { JwtPayload } from 'jsonwebtoken';
 import { ACCOUNT_MESSAGE } from '../APIService/controller/account';
+import { log } from 'console';
+import { DataApi } from '../APIService';
 
 const logger = Logger.createNamedLogger('SOCKET_IO');
 logger.setDate(() => new Date().toLocaleString());
@@ -156,13 +158,43 @@ class SocketIOInstance extends RocketService {
     }
   }
 
+  private handleFromApi(payload: DataApi, action: ActionPayload, code: string) {
+    const userId = payload.userId;
+    const deviceId = payload.deviceId;
+
+    logger.info('handleFromApi: ', userId, ' - ', deviceId, ' - ', code);
+
+    if (action == 'NOTIFY') {
+      if (code === CODE_EVENT_ACTIVE_DEVICE) {
+        /* [PATH: '{userId}/device/active'] */
+        logger.info('payload device id: ', deviceId);
+        logger.info('payload active: ', typeof payload.data);
+        // this.io.emit(`${userId}/device/active`, JSON.parse(payload.data));
+        this.deviceBoardcastMsg(
+          deviceId,
+          `${userId}/device/active`,
+          payload.data
+        );
+
+        this.deviceBoardcastMsg(
+          deviceId,
+          `${userId}/device/add`,
+          JSON.stringify({ id: deviceId })
+        );
+      }
+    }
+  }
+
   private deviceBoardcastMsg(
     deviceId: string,
     eventName: string,
     msg: any
   ): void {
+    logger.info('deviceBoardcastMsg: ', deviceId, ' - ', eventName, ' - ', msg);
+
     if (this.cacheDeviceLinkClient[deviceId]) {
       this.cacheDeviceLinkClient[deviceId].forEach((sockId) => {
+        logger.info('deviceBoardcastMsg sockId: ', sockId);
         const _sock = this.io.sockets.sockets.get(sockId);
         if (_sock) {
           _sock.emit(eventName, msg);
@@ -173,12 +205,16 @@ class SocketIOInstance extends RocketService {
 
   override onReceiveMessage(payload: string): void {
     const pay: DataRocketDynamic = JSON.parse(payload);
-    logger.info(`received message form ${pay.service} => ${payload.length}`);
+    logger.info(
+      `received message form ${pay.service} => length: ${payload.length} => code: ${pay.code}`
+    );
 
     if (pay.service === 'mqtt-service') {
       this.handleDataMqtt(pay.payload as DataMqtt, pay.action, pay.code);
     } else if (pay.service === 'db-service') {
       this.handleFromDatabase(pay.payload as DataSocket, pay.action, pay.code);
+    } else if (pay.service === 'api-service') {
+      this.handleFromApi(pay.payload as DataApi, pay.action, pay.code);
     }
   }
 
@@ -312,6 +348,9 @@ class SocketIOInstance extends RocketService {
             };
           }),
         };
+
+        logger.info('cacheClientLinkDevice: ', this.cacheClientLinkDevice);
+        logger.info('cacheDeviceLinkClient: ', this.cacheDeviceLinkClient);
       }
 
       return next();
