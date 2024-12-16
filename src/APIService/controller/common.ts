@@ -1,7 +1,12 @@
 import { RocketService } from '../../ManageService';
+import { ServiceType } from '../../Constant/interface';
 
 export const controller = {
-  sendMessage: async (rocket: RocketService, _cbData: () => any) => {
-    rocket.sendMessage('mqtt-service', _cbData());
+  sendMessage: async (
+    rocket: RocketService,
+    service: ServiceType,
+    _cbData: () => any
+  ) => {
+    rocket.sendMessage(service, _cbData());
   },
 };

@@ -19,6 +19,7 @@ import { DataRocketDynamic } from '../../Constant/interface';
 import {
   CODE_EVENT_SYNC_THRESHOLD,
   CODE_EVENT_REMOVE_DEVICE,
+  CODE_EVENT_ACTIVE_DEVICE,
 } from '../../Constant';
 
 interface CreateDevicePayload {
@@ -245,6 +246,7 @@ class Device {
 
           controller.sendMessage(
             req.app.locals['_ctx'] as RocketService,
+            'mqtt-service',
             () => {
               const _data: DataRocketDynamic<DataApi> = {
                 service: 'api-service',
@@ -321,6 +323,7 @@ class Device {
 
           controller.sendMessage(
             req.app.locals['_ctx'] as RocketService,
+            'mqtt-service',
             () => {
               const _data: DataRocketDynamic<DataApi> = {
                 service: 'api-service',
@@ -421,6 +424,27 @@ class Device {
           .updateOne({ type: type_node, by_user: user._id, state: 'active' })
           .exec();
 
+        controller.sendMessage(
+          req.app.locals['_ctx'] as RocketService,
+          'socket-io-service',
+          () => {
+            const _data: DataRocketDynamic<DataApi> = {
+              service: 'api-service',
+              action: 'NOTIFY',
+              code: CODE_EVENT_ACTIVE_DEVICE,
+              payload: {
+                mac: req.body['mac'],
+                deviceId: device._id.toString(),
+                userId: req.body['_token_user_id'],
+                data: {
+                  mac: req.body['mac'],
+                },
+              },
+            };
+            return _data;
+          }
+        );
+
         return res.status(200).json({
           code: '107012',
           message: DEVICE_MESSAGE['107012'],
@@ -456,6 +480,28 @@ class Device {
         });
 
         await device.save();
+
+        controller.sendMessage(
+          req.app.locals['_ctx'] as RocketService,
+          'socket-io-service',
+          () => {
+            const _data: DataRocketDynamic<DataApi> = {
+              service: 'api-service',
+              action: 'NOTIFY',
+              code: CODE_EVENT_ACTIVE_DEVICE,
+              payload: {
+                mac: req.body['mac'],
+                deviceId: device._id.toString(),
+                userId: req.body['_token_user_id'],
+                data: {
+                  mac: req.body['mac'],
+                },
+              },
+            };
+            return _data;
+          }
+        );
+
         return res.status(200).json({
           code: '107010',
           message: DEVICE_MESSAGE['107010'],
@@ -521,20 +567,24 @@ class Device {
       await device.updateOne({ state: 'removed' }).exec();
 
       /* notify device is remove */
-      controller.sendMessage(req.app.locals['_ctx'] as RocketService, () => {
-        const _data: DataRocketDynamic<DataApi> = {
-          service: 'api-service',
-          action: 'NOTIFY',
-          code: CODE_EVENT_REMOVE_DEVICE,
-          payload: {
-            mac: req.body['_mac'],
-            deviceId: req.body['_device_id'],
-            userId: req.body['_user_id'],
-            data: {},
-          },
-        };
-        return _data;
-      });
+      controller.sendMessage(
+        req.app.locals['_ctx'] as RocketService,
+        'mqtt-service',
+        () => {
+          const _data: DataRocketDynamic<DataApi> = {
+            service: 'api-service',
+            action: 'NOTIFY',
+            code: CODE_EVENT_REMOVE_DEVICE,
+            payload: {
+              mac: req.body['_mac'],
+              deviceId: req.body['_device_id'],
+              userId: req.body['_user_id'],
+              data: {},
+            },
+          };
+          return _data;
+        }
+      );
 
       return res
         .status(200)
